@@ -1,5 +1,17 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-const firebaseConfig = { apiKey:"AIzaSyAmlKk-kun_RwenWVF--0rDaMO8LbP7wvw", authDomain:"maxfarma-eaf1a.firebaseapp.com", projectId:"maxfarma-eaf1a", storageBucket:"maxfarma-eaf1a.firebasestorage.app", messagingSenderId:"49200319911", appId:"1:49200319911:web:bae1dd5687851b0a227a82", measurementId:"G-Y8GS4ZB2DK" };
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+// Inicializa Firebase solo si no se inicializó antes
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
+// Exportamos la base de datos de Firestore lista para usar
 export const db = getFirestore(app);
