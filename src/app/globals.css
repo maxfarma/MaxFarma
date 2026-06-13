@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-red: #C8102E;
+    --brand-dark: #9B0D22;
+    --brand-light: #FFF0F3;
+    --brand-muted: #F9F0F1;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font-outfit), system-ui, sans-serif; color: #1a1a1a; }
+}
+
+@layer components {
+  .btn-primary   { @apply bg-[#C8102E] text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-[#9B0D22] active:scale-[.98] transition-all duration-150 text-sm shadow-sm; }
+  .btn-secondary { @apply bg-white text-gray-800 font-semibold px-4 py-2 rounded-lg border border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all duration-150 text-sm; }
+  .btn-ghost     { @apply text-gray-600 font-medium px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors duration-150 text-sm; }
+  .input-field   { @apply w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent transition-all bg-white; }
+  .section-title { @apply text-2xl font-bold text-gray-900 tracking-tight; }
+  .badge         { @apply inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full; }
+}
+
+/* ── Cart panel ── */
+.cart-panel { transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+.cart-panel.open { transform: translateX(0); }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #C8102E; }
+
+/* ── Skeleton ── */
+.skeleton { background: linear-gradient(90deg,#f3f3f3 25%,#ebebeb 50%,#f3f3f3 75%); background-size:200% 100%; animation: sk 1.4s infinite; }
+@keyframes sk { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── Product card ── */
+.product-card { @apply bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col; transition: box-shadow .2s ease, transform .2s ease; }
+.product-card:hover { box-shadow: 0 8px 30px rgba(0,0,0,.10); transform: translateY(-2px); }
+.product-card-img { transition: transform .35s ease; }
+.product-card:hover .product-card-img { transform: scale(1.06); }
+
+/* ── Hero banner ── */
+.hero-slide { transition: opacity .55s ease-in-out; }
+
+/* ── Modal backdrop ── */
+.modal-backdrop { animation: fade-in .2s ease; }
+@keyframes fade-in { from{opacity:0} to{opacity:1} }
+.modal-panel { animation: slide-up .25s ease; }
+@keyframes slide-up { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── Navbar scroll blur ── */
+.navbar-scroll { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); background: rgba(255,255,255,.92) !important; }
+
+/* ── Animate fade-up on scroll ── */
+@keyframes fade-up { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+.animate-fade-up { animation: fade-up .5s ease both; }
+.animate-delay-1 { animation-delay:.1s; }
+.animate-delay-2 { animation-delay:.2s; }
+.animate-delay-3 { animation-delay:.3s; }
+.animate-delay-4 { animation-delay:.4s; }
+
+/* ── Marcas marquee ── */
+@keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+.marquee-track { animation: marquee 28s linear infinite; display:flex; width:max-content; }
+.marquee-track:hover { animation-play-state: paused; }
