@@ -35,8 +35,10 @@ const DEMO_PAGINAS = {
 };
 
 const initialState = {
+  // Estos SIEMPRE vienen de Firestore — nunca de localStorage
   products: [], promos: [], banners: [], orders: [],
   paginas: DEMO_PAGINAS,
+  // Estos se persisten en localStorage (solo datos del usuario)
   cart: [], wishlist: [], searchHistory: [],
   currentSection: 'inicio', currentCategory: 'todos',
   searchQuery: '', sortOrder: 'default', maxPrice: 200000,
@@ -99,60 +101,93 @@ export function StoreProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const initialLoadDone = useRef(false);
 
-  // 1. Cargar carrito/wishlist/historial desde localStorage
+  // 1. Cargar SOLO carrito/wishlist/historial desde localStorage
+  // Los productos, banners y promos SIEMPRE vienen de Firestore
   useEffect(() => {
     try {
-      const cart         = JSON.parse(localStorage.getItem('mf_cart')    || '[]');
-      const wishlist     = JSON.parse(localStorage.getItem('mf_wishlist')|| '[]');
-      const searchHistory= JSON.parse(localStorage.getItem('mf_search_history')|| '[]');
+      const cart          = JSON.parse(localStorage.getItem('mf_cart')           || '[]');
+      const wishlist      = JSON.parse(localStorage.getItem('mf_wishlist')        || '[]');
+      const searchHistory = JSON.parse(localStorage.getItem('mf_search_history')  || '[]');
+      // Limpiar cualquier dato de catálogo que pudiera estar cacheado en localStorage
+      localStorage.removeItem('mf_products');
+      localStorage.removeItem('mf_banners');
+      localStorage.removeItem('mf_promos');
+      localStorage.removeItem('mf_paginas');
       dispatch({ type:'INIT_LOCAL', payload:{ cart, wishlist, searchHistory } });
     } catch {}
   }, []);
 
-  // 2. Escuchar Firestore en tiempo real
+  // 2. Escuchar Firestore en tiempo real — FUENTE DE VERDAD
+  // Cualquier cambio en Firestore se propaga INMEDIATAMENTE a todos los dispositivos
+  // Los datos de localStorage NUNCA pisan estos valores
   useEffect(() => {
     const unsubs = [];
+    let loadedCount = 0;
+    const TOTAL = 4; // products, promos, banners, paginas
+
+    const markLoaded = () => {
+      loadedCount++;
+      if (loadedCount >= TOTAL && !initialLoadDone.current) {
+        initialLoadDone.current = true;
+        dispatch({ type:'DB_LOADED' });
+      }
+    };
 
     unsubs.push(onSnapshot(doc(db, COL, 'products'), snap => {
       if (snap.exists()) {
-        const items = snap.data().items || [];
-        dispatch({ type:'SET_PRODUCTS', payload: items.length ? items : DEMO_PRODUCTS });
+        // Si Firestore tiene array vacío [] significa que el admin borró todos los productos
+        dispatch({ type:'SET_PRODUCTS', payload: snap.data().items ?? DEMO_PRODUCTS });
       } else {
         dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
         saveToFirestore('products', { items: DEMO_PRODUCTS });
       }
-    }, err => { console.error(err); dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS }); }));
+      markLoaded();
+    }, err => {
+      console.error('products error:', err);
+      dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
+      markLoaded();
+    }));
 
     unsubs.push(onSnapshot(doc(db, COL, 'promos'), snap => {
       if (snap.exists()) {
-        dispatch({ type:'SET_PROMOS', payload: snap.data().items || DEMO_PROMOS });
+        dispatch({ type:'SET_PROMOS', payload: snap.data().items ?? DEMO_PROMOS });
       } else {
         dispatch({ type:'SET_PROMOS', payload: DEMO_PROMOS });
         saveToFirestore('promos', { items: DEMO_PROMOS });
       }
-    }, err => { console.error(err); dispatch({ type:'SET_PROMOS', payload: DEMO_PROMOS }); }));
+      markLoaded();
+    }, err => {
+      console.error('promos error:', err);
+      dispatch({ type:'SET_PROMOS', payload: DEMO_PROMOS });
+      markLoaded();
+    }));
 
     unsubs.push(onSnapshot(doc(db, COL, 'banners'), snap => {
       if (snap.exists()) {
-        dispatch({ type:'SET_BANNERS', payload: snap.data().items || DEMO_BANNERS });
+        dispatch({ type:'SET_BANNERS', payload: snap.data().items ?? DEMO_BANNERS });
       } else {
         dispatch({ type:'SET_BANNERS', payload: DEMO_BANNERS });
         saveToFirestore('banners', { items: DEMO_BANNERS });
       }
-    }, err => { console.error(err); dispatch({ type:'SET_BANNERS', payload: DEMO_BANNERS }); }));
+      markLoaded();
+    }, err => {
+      console.error('banners error:', err);
+      dispatch({ type:'SET_BANNERS', payload: DEMO_BANNERS });
+      markLoaded();
+    }));
 
     unsubs.push(onSnapshot(doc(db, COL, 'paginas'), snap => {
       if (snap.exists()) {
-        dispatch({ type:'SET_PAGINAS', payload: snap.data().data || DEMO_PAGINAS });
+        dispatch({ type:'SET_PAGINAS', payload: snap.data().data ?? DEMO_PAGINAS });
       } else {
         dispatch({ type:'SET_PAGINAS', payload: DEMO_PAGINAS });
         saveToFirestore('paginas', { data: DEMO_PAGINAS });
       }
-      if (!initialLoadDone.current) {
-        initialLoadDone.current = true;
-        dispatch({ type:'DB_LOADED' });
-      }
-    }, err => { console.error(err); dispatch({ type:'DB_LOADED' }); }));
+      markLoaded();
+    }, err => {
+      console.error('paginas error:', err);
+      markLoaded();
+    }));
 
     return () => unsubs.forEach(u => u());
   }, []);
