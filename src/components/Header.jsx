@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, ShoppingCart, Menu, X, Heart, ChevronDown, Phone, MapPin, Clock } from 'lucide-react';
 import { useStore, CAT_LABELS, CAT_ICONS, formatPrice } from '@/lib/store';
+import ObfuscatedEmail from '@/components/ObfuscatedEmail';
 
 export default function Header() {
   const { state, dispatch } = useStore();
@@ -19,6 +20,17 @@ export default function Header() {
     const fn = () => setScrolled(window.scrollY > 8);
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
+  }, []);
+
+  // Atajo de teclado secreto: Ctrl+Shift+A abre el panel admin
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        navTo('admin');
+      }
+    };
+    window.addEventListener('keydown', fn);
+    return () => window.removeEventListener('keydown', fn);
   }, []);
 
   useEffect(() => {
@@ -79,7 +91,7 @@ export default function Header() {
             <a href="tel:+5493625298918" className="flex items-center gap-1.5 hover:text-white transition-colors">
               <Phone className="w-3 h-3" /> Llamanos
             </a>
-            <a href="mailto:ventamaxfarma@gmail.com" className="hover:text-white transition-colors">ventamaxfarma@gmail.com</a>
+            <ObfuscatedEmail className="text-gray-400" />
           </div>
         </div>
       </div>
@@ -172,7 +184,7 @@ export default function Header() {
                 {l}
               </button>
             ))}
-            <button onClick={() => navTo('admin')} className="px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors">Panel</button>
+            {/* Panel oculto del menú público — accedé con Ctrl+Shift+A */}
           </nav>
 
           {/* Actions */}
@@ -206,7 +218,7 @@ export default function Header() {
         {mobileOpen && (
           <div className="lg:hidden border-t border-gray-100 bg-white px-4 py-3">
             <div className="flex flex-col gap-0.5 mb-3">
-              {[['inicio','Inicio'],['productos','Productos'],['ofertas','Ofertas'],['promos','Promos Bancarias'],['wishlist','❤️ Favoritos'],['admin','⚙️ Panel Admin']].map(([k,l]) => (
+              {[['inicio','Inicio'],['productos','Productos'],['ofertas','Ofertas'],['promos','Promos Bancarias'],['wishlist','❤️ Favoritos']].map(([k,l]) => (
                 <button key={k} onClick={() => navTo(k)} className="text-left px-3 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">{l}</button>
               ))}
             </div>

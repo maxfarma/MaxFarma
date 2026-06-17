@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Ocultar el panel admin de los bots
+Disallow: /admin
+Disallow: /panel
+Disallow: /api/
+
+# Sitemap (cuando lo tengas)
+# Sitemap: https://max-farma-ebon.vercel.app/sitemap.xml

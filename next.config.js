@@ -11,9 +11,16 @@ const nextConfig = {
       {
         source: '/(.*)',
         headers: [
+          // Previene clickjacking
           { key: 'X-Frame-Options', value: 'DENY' },
+          // Previene sniffing de MIME
           { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Fuerza HTTPS
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+          // Referrer seguro
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Deshabilita features innecesarias
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
           {
             key: 'Content-Security-Policy',
             value: [
@@ -22,9 +29,9 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
-              // AGREGADO: api.cloudinary.com y res.cloudinary.com
+              // Cloudinary + Firebase + Analytics
               "connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://firebase.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://www.google-analytics.com https://www.clarity.ms https://www.googletagmanager.com",
-              "frame-src 'self' https://accounts.google.com https://www.googletagmanager.com",
+              "frame-src 'self' https://accounts.google.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",

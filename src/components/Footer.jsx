@@ -1,6 +1,7 @@
 'use client';
 import { useStore } from '@/lib/store';
 import { MapPin, Clock, Phone, Mail, Instagram, Facebook, ExternalLink } from 'lucide-react';
+import ObfuscatedEmail from '@/components/ObfuscatedEmail';
 
 export default function Footer() {
   const { state, dispatch } = useStore();
@@ -162,7 +163,7 @@ export default function Footer() {
             </li>
             <li className="flex items-center gap-2.5">
               <Mail className="w-4 h-4 flex-shrink-0 text-[#C8102E]"/>
-              <a href="mailto:ventamaxfarma@gmail.com" className="hover:text-white transition-colors text-xs">ventamaxfarma@gmail.com</a>
+              <ObfuscatedEmail className="text-xs" />
             </li>
             <li className="flex items-center gap-2.5">
               <Instagram className="w-4 h-4 flex-shrink-0 text-[#C8102E]"/>
