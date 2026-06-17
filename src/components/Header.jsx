@@ -24,7 +24,7 @@ export default function Header() {
 
   // Atajo de teclado secreto: Ctrl+Shift+A abre el panel admin
   useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
+    const fn = (e) => {
       if (e.ctrlKey && e.shiftKey && e.key === 'A') {
         navTo('admin');
       }
