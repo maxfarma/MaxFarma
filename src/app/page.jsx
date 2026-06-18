@@ -24,7 +24,6 @@ export default function Home() {
       <ProductModal />
       <ToastContainer />
       <WhatsAppButton />
-      <ProgramaDescuento />
       <main className="min-h-screen bg-gray-50">
         {state.currentSection === 'inicio'    && <Inicio />}
         {state.currentSection === 'productos' && <Productos />}
