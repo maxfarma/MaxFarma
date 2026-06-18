@@ -36,11 +36,12 @@ const DEMO_PAGINAS = {
 
 const initialState = {
   // Estos SIEMPRE vienen de Firestore — nunca de localStorage
-  products: [], promos: [], banners: [], orders: [],
+  products: [], promos: [], banners: [], orders: [], programas: [],
   paginas: DEMO_PAGINAS,
   // Estos se persisten en localStorage (solo datos del usuario)
   cart: [], wishlist: [], searchHistory: [],
   currentSection: 'inicio', currentCategory: 'todos',
+  currentPrograma: null,
   searchQuery: '', sortOrder: 'default', maxPrice: 200000,
   cartOpen: false, productModal: null,
   dbLoaded: false,
@@ -55,6 +56,8 @@ function reducer(state, action) {
     case 'SET_BANNERS':        return { ...state, banners: action.payload };
     case 'SET_PAGINAS':        return { ...state, paginas: action.payload };
     case 'SET_ORDERS':         return { ...state, orders: action.payload };
+    case 'SET_PROGRAMAS':      return { ...state, programas: action.payload };
+    case 'SET_PROGRAMA':       return { ...state, currentPrograma: action.payload, currentSection: 'programa' };
     case 'ADD_ORDER':          return { ...state, orders: [action.payload, ...state.orders] };
     case 'UPDATE_ORDER_STATUS':return { ...state, orders: state.orders.map((o,i) => i===action.idx ? {...o,estado:action.status} : o) };
     case 'ADD_TO_CART': {
@@ -189,6 +192,14 @@ export function StoreProvider({ children }) {
       markLoaded();
     }));
 
+    unsubs.push(onSnapshot(doc(db, COL, 'programas'), snap => {
+      if (snap.exists()) {
+        dispatch({ type:'SET_PROGRAMAS', payload: snap.data().items ?? [] });
+      } else {
+        dispatch({ type:'SET_PROGRAMAS', payload: [] });
+      }
+    }, err => { console.error('programas error:', err); }));
+
     return () => unsubs.forEach(u => u());
   }, []);
 
@@ -199,10 +210,11 @@ export function StoreProvider({ children }) {
 
   const saveConfig = async (type, data) => {
     switch(type) {
-      case 'products': await saveToFirestore('products', { items: data }); break;
-      case 'promos':   await saveToFirestore('promos',   { items: data }); break;
-      case 'banners':  await saveToFirestore('banners',  { items: data }); break;
-      case 'paginas':  await saveToFirestore('paginas',  { data });        break;
+      case 'products':  await saveToFirestore('products',  { items: data }); break;
+      case 'promos':    await saveToFirestore('promos',    { items: data }); break;
+      case 'banners':   await saveToFirestore('banners',   { items: data }); break;
+      case 'paginas':   await saveToFirestore('paginas',   { data });        break;
+      case 'programas': await saveToFirestore('programas', { items: data }); break;
     }
   };
 

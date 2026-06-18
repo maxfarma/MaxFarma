@@ -9,7 +9,7 @@ import {
   X, Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp,
   Save, ArrowLeft, Eye, EyeOff, Lock, Package, CreditCard,
   Image, Settings, ShoppingBag, AlertCircle,
-  CheckCircle, LayoutDashboard, FileText
+  CheckCircle, LayoutDashboard, FileText, Tag, Percent
 } from 'lucide-react';
 
 /* ─── AUTH ─── */
@@ -125,6 +125,7 @@ export default function Admin() {
     { key:'promos',    label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
     { key:'banners',   label:'Banners',          icon:<Image className="w-4 h-4"/> },
     { key:'paginas',   label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
+    { key:'programas', label:'Programas',         icon:<Tag className="w-4 h-4"/> },
     { key:'config',    label:'Configuración',    icon:<Settings className="w-4 h-4"/> },
   ];
 
@@ -169,6 +170,7 @@ export default function Admin() {
         {tab==='promos'    && <PromosTab/>}
         {tab==='banners'   && <BannersTab/>}
         {tab==='paginas'   && <PaginasTab/>}
+        {tab==='programas' && <ProgramasTab/>}
         {tab==='config'    && <ConfigTab/>}
       </div>
     </div>
@@ -754,6 +756,311 @@ function ConfigTab() {
         {msg&&<div className={`mt-3 flex items-center gap-2 text-sm p-3 rounded-lg ${msg.type==='ok'?'bg-green-50 text-green-700':'bg-red-50 text-red-600'}`}>{msg.type==='ok'?<CheckCircle className="w-4 h-4"/>:<AlertCircle className="w-4 h-4"/>}{msg.text}</div>}
         <button onClick={handleChangePass} className="mt-4 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors"><Save className="w-4 h-4"/>Cambiar contraseña</button>
       </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB: PROGRAMAS DE DESCUENTO
+   Ej: Programa Andrómaco, Programa Roemmers, etc.
+   Cada programa tiene: nombre, descripción, logo, color,
+   lista de productos con su % de descuento.
+═══════════════════════════════════════════════════════════ */
+const EMPTY_PROGRAMA = {
+  nombre: '',
+  descripcion: '',
+  imagen_url: '',
+  color: '#C8102E',
+  activo: 'SI',
+  productos: [], // [{ codigo, nombre, descuento }]
+};
+
+function ProgramasTab() {
+  const { state, dispatch, saveConfig } = useStore();
+  const [editIdx, setEditIdx]     = useState(null);
+  const [form, setForm]           = useState(null);
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const programas = state.programas || [];
+
+  const openNew  = () => { setForm({ ...EMPTY_PROGRAMA, _isNew: true }); setEditIdx(-1); };
+  const openEdit = (i) => { setForm({ ...programas[i] }); setEditIdx(i); };
+  const set      = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const save = () => {
+    if (!form.nombre) { alert('El nombre del programa es obligatorio.'); return; }
+    let updated;
+    if (form._isNew) {
+      const { _isNew, ...clean } = form;
+      updated = [...programas, clean];
+    } else {
+      updated = programas.map((p, i) => i === editIdx ? { ...form } : p);
+    }
+    dispatch({ type: 'SET_PROGRAMAS', payload: updated });
+    saveConfig('programas', updated);
+    setEditIdx(null); setForm(null);
+  };
+
+  const remove = (i) => {
+    const n = programas.filter((_, idx) => idx !== i);
+    dispatch({ type: 'SET_PROGRAMAS', payload: n });
+    saveConfig('programas', n);
+    setConfirmDel(null);
+  };
+
+  const toggle = (i) => {
+    const t = programas.map((p, idx) => idx === i ? { ...p, activo: (p.activo || 'SI') === 'SI' ? 'NO' : 'SI' } : p);
+    dispatch({ type: 'SET_PROGRAMAS', payload: t });
+    saveConfig('programas', t);
+  };
+
+  /* ── Agregar producto al programa ── */
+  const addProducto = (form, set) => {
+    set('productos', [...(form.productos || []), { codigo: '', nombre: '', descuento: 0, imagen_url: '' }]);
+  };
+
+  const updateProducto = (form, set, idx, key, val) => {
+    const updated = (form.productos || []).map((p, i) => i === idx ? { ...p, [key]: val } : p);
+    set('productos', updated);
+  };
+
+  const removeProducto = (form, set, idx) => {
+    set('productos', (form.productos || []).filter((_, i) => i !== idx));
+  };
+
+  /* ── Auto-completar producto desde catálogo ── */
+  const autoComplete = (form, set, idx, query) => {
+    const found = state.products.find(p =>
+      p.codigo === query ||
+      p.nombre.toLowerCase().includes(query.toLowerCase())
+    );
+    if (found) {
+      const updated = (form.productos || []).map((p, i) =>
+        i === idx ? { ...p, codigo: found.codigo, nombre: found.nombre, imagen_url: found.imagen_url || '' } : p
+      );
+      set('productos', updated);
+    }
+  };
+
+  /* ── FORM ── */
+  if (editIdx !== null && form) {
+    return (
+      <div>
+        <button onClick={() => { setEditIdx(null); setForm(null); }}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Volver a programas
+        </button>
+        <h2 className="text-lg font-bold text-gray-900 mb-5">
+          {form._isNew ? 'Nuevo programa de descuento' : `Editar: ${form.nombre}`}
+        </h2>
+
+        {/* Preview */}
+        <div className="rounded-xl mb-5 p-5 flex items-center gap-4" style={{ background: form.color || '#C8102E' }}>
+          {form.imagen_url && <img src={form.imagen_url} alt="" className="w-14 h-14 object-contain rounded-lg bg-white p-1" onError={e => e.target.style.display = 'none'} />}
+          <div>
+            <p className="text-white font-black text-xl">{form.nombre || 'Nombre del programa'}</p>
+            <p className="text-white/80 text-sm">{form.descripcion || 'Descripción'}</p>
+            <p className="text-white/60 text-xs mt-1">{(form.productos || []).length} producto(s) con descuento</p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 p-6 mb-4">
+          <Field label="Nombre del programa *" col2>
+            <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+              value={form.nombre} onChange={e => set('nombre', e.target.value)} placeholder="Programa Andrómaco" />
+          </Field>
+          <Field label="Descripción" col2>
+            <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+              value={form.descripcion} onChange={e => set('descripcion', e.target.value)} placeholder="Descuentos exclusivos del laboratorio Andrómaco" />
+          </Field>
+          <div className="md:col-span-2">
+            <ImageField label="Logo del laboratorio — URL o subir desde tu PC"
+              value={form.imagen_url || ''} onChange={v => set('imagen_url', v)}
+              placeholder="https://laboratorio.com/logo.png" previewClass="w-16 h-16" />
+          </div>
+          <Field label="Color del programa">
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.color || '#C8102E'} onChange={e => set('color', e.target.value)}
+                className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+              <input className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.color} onChange={e => set('color', e.target.value)} placeholder="#C8102E" />
+            </div>
+          </Field>
+          <Field label="Estado">
+            <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+              value={form.activo} onChange={e => set('activo', e.target.value)}>
+              <option value="SI">Activo — visible en el menú</option>
+              <option value="NO">Inactivo — oculto</option>
+            </select>
+          </Field>
+        </div>
+
+        {/* Productos del programa */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-bold text-gray-900">Productos con descuento</h3>
+              <p className="text-xs text-gray-400 mt-0.5">Buscá por nombre o código. El % de descuento se muestra sobre el precio normal del producto.</p>
+            </div>
+            <button onClick={() => addProducto(form, set)}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+              <Plus className="w-4 h-4" /> Agregar producto
+            </button>
+          </div>
+
+          {(form.productos || []).length === 0 ? (
+            <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl">
+              <Percent className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Todavía no hay productos. Hacé clic en "Agregar producto".</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {(form.productos || []).map((prod, idx) => (
+                <div key={idx} className="grid grid-cols-12 gap-2 items-start p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  {/* Imagen pequeña */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {prod.imagen_url
+                        ? <img src={prod.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e => e.target.style.display = 'none'} />
+                        : <Package className="w-4 h-4 text-gray-300" />}
+                    </div>
+                  </div>
+                  {/* Búsqueda por nombre */}
+                  <div className="col-span-6">
+                    <p className="text-xs text-gray-400 mb-1">Nombre del producto</p>
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                      value={prod.nombre}
+                      onChange={e => updateProducto(form, set, idx, 'nombre', e.target.value)}
+                      onBlur={e => autoComplete(form, set, idx, e.target.value)}
+                      placeholder="Escribí nombre o código..."
+                    />
+                  </div>
+                  {/* Código */}
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-400 mb-1">Código</p>
+                    <input
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                      value={prod.codigo}
+                      onChange={e => updateProducto(form, set, idx, 'codigo', e.target.value)}
+                      placeholder="EAN"
+                    />
+                  </div>
+                  {/* Descuento % */}
+                  <div className="col-span-2">
+                    <p className="text-xs text-gray-400 mb-1">% Descuento</p>
+                    <div className="relative">
+                      <input type="number" min="0" max="100"
+                        className="w-full border border-gray-200 rounded-lg pl-2 pr-6 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                        value={prod.descuento}
+                        onChange={e => updateProducto(form, set, idx, 'descuento', Number(e.target.value))}
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                    </div>
+                  </div>
+                  {/* Eliminar */}
+                  <div className="col-span-1 flex items-end justify-center pb-0.5">
+                    <button onClick={() => removeProducto(form, set, idx)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors mt-5">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3 mt-5">
+          <button onClick={() => { setEditIdx(null); setForm(null); }}
+            className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+            Cancelar
+          </button>
+          <button onClick={save}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+            <Save className="w-4 h-4" /> Guardar programa
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── LIST ── */
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Programas de descuento</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Ej: Programa Andrómaco, Roemmers, etc. Aparecen en el menú "Promos".</p>
+        </div>
+        <button onClick={openNew}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+          <Plus className="w-4 h-4" /> Nuevo programa
+        </button>
+      </div>
+
+      {programas.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
+          <Tag className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm font-medium">No hay programas de descuento</p>
+          <p className="text-gray-300 text-xs mt-1">Creá uno con el botón "Nuevo programa"</p>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {programas.map((p, i) => (
+            <div key={i} className={`bg-white rounded-xl border border-gray-200 overflow-hidden transition-opacity ${(p.activo || 'SI') === 'NO' ? 'opacity-50' : ''}`}>
+              {/* Header del card con color del programa */}
+              <div className="p-4 flex items-center gap-3" style={{ background: p.color || '#C8102E' }}>
+                {p.imagen_url && (
+                  <img src={p.imagen_url} alt="" className="w-10 h-10 rounded-lg object-contain bg-white p-1 flex-shrink-0"
+                    onError={e => e.target.style.display = 'none'} />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-white leading-tight truncate">{p.nombre}</p>
+                  <p className="text-white/70 text-xs">{(p.productos || []).length} producto(s)</p>
+                </div>
+                <StatusBadge active={(p.activo || 'SI') === 'SI'} />
+              </div>
+              {/* Body */}
+              <div className="p-4">
+                {p.descripcion && <p className="text-xs text-gray-500 mb-3 line-clamp-2">{p.descripcion}</p>}
+                {/* Preview de primeros 3 productos */}
+                {(p.productos || []).slice(0, 3).map((prod, j) => (
+                  <div key={j} className="flex items-center justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                    <span className="text-gray-600 truncate flex-1 mr-2">{prod.nombre || prod.codigo}</span>
+                    <span className="font-bold text-[#C8102E] flex-shrink-0">{prod.descuento}% OFF</span>
+                  </div>
+                ))}
+                {(p.productos || []).length > 3 && (
+                  <p className="text-xs text-gray-400 mt-1">+{(p.productos || []).length - 3} más...</p>
+                )}
+                <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
+                  <button onClick={() => toggle(i)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    {(p.activo || 'SI') === 'SI' ? <><EyeOff className="w-3.5 h-3.5" /> Ocultar</> : <><Eye className="w-3.5 h-3.5" /> Mostrar</>}
+                  </button>
+                  <button onClick={() => openEdit(i)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setConfirmDel(i)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {confirmDel !== null && (
+        <ConfirmModal
+          message="¿Eliminar este programa de descuento?"
+          onConfirm={() => remove(confirmDel)}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
     </div>
   );
 }

@@ -98,13 +98,15 @@ export default function Header() {
 
       {/* Main header */}
       <header className={`sticky top-0 z-50 border-b border-gray-100 transition-all duration-200 ${scrolled ? 'navbar-scroll shadow-md' : 'bg-white'}`}>
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center gap-3">
 
           {/* Logo */}
           <button onClick={() => navTo('inicio')} className="flex-shrink-0 mr-2">
-            <img src="/logo.png" alt="MaxFarma" className="h-11 w-auto object-contain"
+            <img src="/logo.png" alt="MaxFarma"
+              style={{ height:'72px', width:'auto', minWidth:'140px', maxWidth:'220px' }}
+              className="object-contain"
               onError={e => { e.target.style.display='none'; e.target.nextSibling.style.display='block'; }} />
-            <span className="hidden font-black text-[#C8102E] text-xl tracking-tight">MaxFarma</span>
+            <span className="hidden font-black text-[#C8102E] text-3xl tracking-tight">MaxFarma</span>
           </button>
 
           {/* Mega menu */}

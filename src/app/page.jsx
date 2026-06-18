@@ -11,6 +11,7 @@ import Checkout from '@/components/Checkout';
 import Admin from '@/components/Admin';
 import ToastContainer from '@/components/Toast';
 import WhatsAppButton from '@/components/WhatsAppButton';
+import ProgramaDescuento from '@/components/ProgramaDescuento';
 import { ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star, ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText } from 'lucide-react';
 
 export default function Home() {
@@ -23,6 +24,7 @@ export default function Home() {
       <ProductModal />
       <ToastContainer />
       <WhatsAppButton />
+      <ProgramaDescuento />
       <main className="min-h-screen bg-gray-50">
         {state.currentSection === 'inicio'    && <Inicio />}
         {state.currentSection === 'productos' && <Productos />}
@@ -30,6 +32,7 @@ export default function Home() {
         {state.currentSection === 'promos'    && <Promos />}
         {state.currentSection === 'wishlist'  && <Wishlist />}
         {state.currentSection === 'checkout'  && <Checkout />}
+        {state.currentSection === 'programa' && <ProgramaDescuento />}
         {state.currentSection === 'admin'     && <Admin />}
         {isPagina && <PaginaEstatica slug={state.currentSection.replace('pagina-', '')} />}
       </main>
