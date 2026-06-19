@@ -268,12 +268,12 @@ function OrderCard({ order, onStatusChange }) {
 function ProductosTab() {
   const { state, dispatch, saveConfig } = useStore();
   const [editingProduct, setEditingProduct] = useState(null);
-  const [search, setSearch]       = useState('');
-  const [filterCat, setFilterCat] = useState('todos');
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [search, setSearch]         = useState('');
+  const [filterCat, setFilterCat]   = useState('todos');
+  const [selected, setSelected]     = useState(new Set()); // codigos seleccionados
+  const [confirmDelete, setConfirmDelete]   = useState(null); // 'single:codigo' | 'selected' | 'all'
   const fileRef = useRef();
 
-  // FIX: Mostrar skeleton mientras no cargaron los productos
   if (!state.dbLoaded) {
     return (
       <div className="space-y-3">
@@ -290,6 +290,37 @@ function ProductosTab() {
     return true;
   });
 
+  /* ── Selección ── */
+  const allFilteredSelected = filtered.length > 0 && filtered.every(p => selected.has(p.codigo));
+  const someSelected = selected.size > 0;
+
+  const toggleOne = (codigo) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(codigo) ? next.delete(codigo) : next.add(codigo);
+      return next;
+    });
+  };
+
+  const toggleAllFiltered = () => {
+    if (allFilteredSelected) {
+      // Deseleccionar todos los filtrados
+      setSelected(prev => {
+        const next = new Set(prev);
+        filtered.forEach(p => next.delete(p.codigo));
+        return next;
+      });
+    } else {
+      // Seleccionar todos los filtrados
+      setSelected(prev => {
+        const next = new Set(prev);
+        filtered.forEach(p => next.add(p.codigo));
+        return next;
+      });
+    }
+  };
+
+  /* ── Guardado / eliminación ── */
   const saveProduct = (form) => {
     if (!form.nombre||!form.precio) { alert('Nombre y precio son obligatorios.'); return; }
     const clean = { ...form }; delete clean._isNew;
@@ -300,11 +331,28 @@ function ProductosTab() {
     setEditingProduct(null);
   };
 
-  const deleteProduct = (codigo) => {
-    const updated = state.products.filter(p=>p.codigo!==codigo);
-    dispatch({ type:'SET_PRODUCTS', payload:updated });
+  const executeDelete = () => {
+    let updated;
+    if (confirmDelete === 'all') {
+      updated = [];
+    } else if (confirmDelete === 'selected') {
+      updated = state.products.filter(p => !selected.has(p.codigo));
+      setSelected(new Set());
+    } else {
+      // single:codigo
+      const codigo = confirmDelete.replace('single:', '');
+      updated = state.products.filter(p => p.codigo !== codigo);
+      setSelected(prev => { const n = new Set(prev); n.delete(codigo); return n; });
+    }
+    dispatch({ type:'SET_PRODUCTS', payload: updated });
     saveConfig('products', updated);
     setConfirmDelete(null);
+  };
+
+  const confirmMsg = () => {
+    if (confirmDelete === 'all') return `¿Eliminar TODOS los ${state.products.length} productos del catálogo? Esta acción no se puede deshacer.`;
+    if (confirmDelete === 'selected') return `¿Eliminar los ${selected.size} producto(s) seleccionados?`;
+    return '¿Eliminar este producto?';
   };
 
   const handleXlsx = (e) => {
@@ -316,21 +364,22 @@ function ProductosTab() {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws,{defval:''});
         const products = rows.map((r,i)=>({
-          codigo:   String(r.codigo||r.Codigo||r.CODIGO||('PRD-'+Date.now()+i)),
-          nombre:   String(r.nombre||r.Nombre||r.NOMBRE||''),
-          marca:    String(r.marca||r.Marca||r.MARCA||''),
-          categoria:String(r.categoria||r.Categoria||r.CATEGORIA||'dermocosmetica'),
-          precio:   Number(r.precio||r.Precio||r.PRECIO||0),
+          codigo:    String(r.codigo||r.Codigo||r.CODIGO||('PRD-'+Date.now()+i)),
+          nombre:    String(r.nombre||r.Nombre||r.NOMBRE||''),
+          marca:     String(r.marca||r.Marca||r.MARCA||''),
+          categoria: String(r.categoria||r.Categoria||r.CATEGORIA||'dermocosmetica'),
+          precio:    Number(r.precio||r.Precio||r.PRECIO||0),
           precio_oferta: r.precio_oferta||r.PrecioOferta||'',
           descripcion: String(r.descripcion||r.Descripcion||''),
-          stock:    String(r.stock||r.Stock||'Disponible'),
-          destacado:String(r.destacado||r.Destacado||'NO').toUpperCase(),
-          imagen_url:String(r.imagen_url||r.ImagenUrl||r.imagen||''),
+          stock:     String(r.stock||r.Stock||'Disponible'),
+          destacado: String(r.destacado||r.Destacado||'NO').toUpperCase(),
+          imagen_url: String(r.imagen_url||r.ImagenUrl||r.imagen||''),
         })).filter(p=>p.nombre);
         if(products.length===0){alert('No se encontraron productos.');return;}
         if(window.confirm(`¿Importar ${products.length} productos? Reemplaza el catálogo actual.`)){
           dispatch({ type:'SET_PRODUCTS', payload:products });
           saveConfig('products', products);
+          setSelected(new Set());
         }
       } catch(err){alert('Error al leer XLSX: '+err.message);}
     };
@@ -342,8 +391,9 @@ function ProductosTab() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="relative flex-1 min-w-[200px]">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="relative flex-1 min-w-[180px]">
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar productos..."
             className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"/>
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -359,9 +409,34 @@ function ProductosTab() {
           <Upload className="w-4 h-4"/> Importar XLSX
         </button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleXlsx}/>
+        {/* Eliminar todos */}
+        {state.products.length > 0 && (
+          <button onClick={()=>setConfirmDelete('all')}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors">
+            <Trash2 className="w-4 h-4"/> Eliminar todos
+          </button>
+        )}
       </div>
 
-      <p className="text-xs text-gray-400 mb-3">{filtered.length} producto(s)</p>
+      {/* ── Barra de acciones cuando hay selección ── */}
+      {someSelected && (
+        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 bg-[#FFF0F3] border border-[#C8102E]/20 rounded-xl">
+          <span className="text-sm font-semibold text-[#C8102E]">{selected.size} producto(s) seleccionado(s)</span>
+          <button onClick={()=>setConfirmDelete('selected')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors ml-auto">
+            <Trash2 className="w-3.5 h-3.5"/> Eliminar seleccionados
+          </button>
+          <button onClick={()=>setSelected(new Set())}
+            className="text-xs text-gray-500 hover:text-gray-700 transition-colors">
+            Cancelar
+          </button>
+        </div>
+      )}
+
+      <p className="text-xs text-gray-400 mb-3">
+        {filtered.length} producto(s)
+        {someSelected && <span className="text-[#C8102E] font-medium"> · {selected.size} seleccionado(s)</span>}
+      </p>
 
       {filtered.length===0 ? (
         <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
@@ -374,6 +449,12 @@ function ProductosTab() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
+                  {/* Checkbox seleccionar todos */}
+                  <th className="px-4 py-3 w-10">
+                    <input type="checkbox" checked={allFilteredSelected} onChange={toggleAllFiltered}
+                      className="w-4 h-4 rounded border-gray-300 text-[#C8102E] cursor-pointer accent-[#C8102E]"
+                      title="Seleccionar todos los visibles" />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Producto</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Categoría</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
@@ -382,42 +463,58 @@ function ProductosTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(p=>(
-                  <tr key={p.codigo} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                          {p.imagen_url ? <img src={p.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e=>e.target.style.display='none'}/> : <span className="text-base">{CAT_ICONS[p.categoria]||'💊'}</span>}
+                {filtered.map(p=>{
+                  const isSelected = selected.has(p.codigo);
+                  return (
+                    <tr key={p.codigo} className={`transition-colors cursor-pointer ${isSelected ? 'bg-[#FFF0F3]' : 'hover:bg-gray-50'}`}
+                      onClick={()=>toggleOne(p.codigo)}>
+                      {/* Checkbox */}
+                      <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected} onChange={()=>toggleOne(p.codigo)}
+                          className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-[#C8102E]" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                            {p.imagen_url ? <img src={p.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e=>e.target.style.display='none'}/> : <span className="text-base">{CAT_ICONS[p.categoria]||'💊'}</span>}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 leading-tight">{p.nombre}</p>
+                            <p className="text-xs text-gray-400">{p.marca} · #{p.codigo}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900 leading-tight">{p.nombre}</p>
-                          <p className="text-xs text-gray-400">{p.marca} · #{p.codigo}</p>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell"><span className="text-xs text-gray-500">{CAT_LABELS[p.categoria]||p.categoria}</span></td>
+                      <td className="px-4 py-3 text-right">
+                        {p.precio_oferta&&parseFloat(p.precio_oferta)>0 ? (
+                          <><p className="font-semibold text-[#C8102E]">${formatPrice(p.precio_oferta)}</p><p className="text-xs text-gray-400 line-through">${formatPrice(p.precio)}</p></>
+                        ) : <p className="font-semibold text-gray-900">${formatPrice(p.precio)}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-center hidden md:table-cell">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.stock==='Disponible'?'bg-green-50 text-green-700':p.stock==='Sin stock'?'bg-red-50 text-red-600':'bg-amber-50 text-amber-700'}`}>{p.stock}</span>
+                      </td>
+                      <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={()=>setEditingProduct({...p})} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Pencil className="w-4 h-4"/></button>
+                          <button onClick={()=>setConfirmDelete('single:'+p.codigo)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4"/></button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell"><span className="text-xs text-gray-500">{CAT_LABELS[p.categoria]||p.categoria}</span></td>
-                    <td className="px-4 py-3 text-right">
-                      {p.precio_oferta&&parseFloat(p.precio_oferta)>0 ? (
-                        <><p className="font-semibold text-[#C8102E]">${formatPrice(p.precio_oferta)}</p><p className="text-xs text-gray-400 line-through">${formatPrice(p.precio)}</p></>
-                      ) : <p className="font-semibold text-gray-900">${formatPrice(p.precio)}</p>}
-                    </td>
-                    <td className="px-4 py-3 text-center hidden md:table-cell">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${p.stock==='Disponible'?'bg-green-50 text-green-700':p.stock==='Sin stock'?'bg-red-50 text-red-600':'bg-amber-50 text-amber-700'}`}>{p.stock}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={()=>setEditingProduct({...p})} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Pencil className="w-4 h-4"/></button>
-                        <button onClick={()=>setConfirmDelete(p.codigo)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4"/></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
-      {confirmDelete && <ConfirmModal message="¿Eliminar este producto?" onConfirm={()=>deleteProduct(confirmDelete)} onCancel={()=>setConfirmDelete(null)}/>}
+
+      {confirmDelete && (
+        <ConfirmModal
+          message={confirmMsg()}
+          onConfirm={executeDelete}
+          onCancel={()=>setConfirmDelete(null)}
+        />
+      )}
     </div>
   );
 }
