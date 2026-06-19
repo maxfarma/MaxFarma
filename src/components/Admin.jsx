@@ -9,7 +9,7 @@ import {
   X, Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp,
   Save, ArrowLeft, Eye, EyeOff, Lock, Package, CreditCard,
   Image, Settings, ShoppingBag, AlertCircle,
-  CheckCircle, LayoutDashboard, FileText, Tag, Percent
+  CheckCircle, LayoutDashboard, FileText, Tag, Percent, Users, Mail, Download
 } from 'lucide-react';
 
 /* ─── AUTH ─── */
@@ -125,6 +125,7 @@ export default function Admin() {
     { key:'promos',    label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
     { key:'banners',   label:'Banners',          icon:<Image className="w-4 h-4"/> },
     { key:'paginas',   label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
+    { key:'suscriptores', label:'Suscriptores',    icon:<Users className="w-4 h-4"/> },
     { key:'categorias', label:'Categorías',        icon:<LayoutDashboard className="w-4 h-4"/> },
     { key:'programas', label:'Programas',         icon:<Tag className="w-4 h-4"/> },
     { key:'config',    label:'Configuración',    icon:<Settings className="w-4 h-4"/> },
@@ -171,6 +172,7 @@ export default function Admin() {
         {tab==='promos'    && <PromosTab/>}
         {tab==='banners'   && <BannersTab/>}
         {tab==='paginas'   && <PaginasTab/>}
+        {tab==='suscriptores' && <SuscriptoresTab/>}
         {tab==='categorias' && <CategoriasTab/>}
         {tab==='programas' && <ProgramasTab/>}
         {tab==='config'    && <ConfigTab/>}
@@ -1430,6 +1432,148 @@ function ProgramasTab() {
         <ConfirmModal
           message="¿Eliminar este programa de descuento?"
           onConfirm={() => remove(confirmDel)}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB: SUSCRIPTORES DE NEWSLETTER
+   Muestra todos los emails guardados desde el formulario
+   de la página de inicio. Permite exportar a CSV.
+═══════════════════════════════════════════════════════════ */
+function SuscriptoresTab() {
+  const [subs, setSubs]       = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch]   = useState('');
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  useEffect(() => {
+    const { collection, onSnapshot, orderBy, query } = require('firebase/firestore');
+    const q = query(collection(db, 'newsletter'), orderBy('fecha', 'desc'));
+    const unsub = onSnapshot(q, snap => {
+      setSubs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setLoading(false);
+    }, err => { console.error(err); setLoading(false); });
+    return () => unsub();
+  }, []);
+
+  const filtered = subs.filter(s =>
+    !search || s.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const exportCSV = () => {
+    const rows = [
+      ['Email', 'Fecha', 'Origen'],
+      ...subs.map(s => [
+        s.email || '',
+        s.fecha?.toDate ? s.fecha.toDate().toLocaleDateString('es-AR') : 'N/A',
+        s.origen || 'web',
+      ]),
+    ];
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `suscriptores_maxfarma_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const deleteSub = async (id) => {
+    const { doc, deleteDoc } = require('firebase/firestore');
+    await deleteDoc(doc(db, 'newsletter', id));
+    setConfirmDel(null);
+  };
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Suscriptores al newsletter</h2>
+          <p className="text-sm text-gray-400 mt-0.5">{subs.length} email(s) registrado(s)</p>
+        </div>
+        <div className="flex gap-2">
+          {subs.length > 0 && (
+            <button onClick={exportCSV}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+              <Download className="w-4 h-4" /> Exportar CSV
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Buscador */}
+      {subs.length > 0 && (
+        <div className="relative mb-4 max-w-sm">
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar email..."
+            className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" />
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        </div>
+      )}
+
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(4)].map((_,i) => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse"/>)}
+        </div>
+      ) : subs.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
+          <Users className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-400 text-sm font-medium">Todavía no hay suscriptores</p>
+          <p className="text-gray-300 text-xs mt-1">Los emails se guardan cuando alguien completa el formulario del inicio</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Fecha</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Origen</th>
+                <th className="px-4 py-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map((s, i) => (
+                <tr key={s.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#FFF0F3] flex items-center justify-center flex-shrink-0">
+                        <Mail className="w-3.5 h-3.5 text-[#C8102E]" />
+                      </div>
+                      <span className="font-medium text-gray-900">{s.email}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell text-gray-500 text-xs">
+                    {s.fecha?.toDate ? s.fecha.toDate().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'}
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s.origen || 'web'}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => setConfirmDel(s.id)}
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && search && (
+            <p className="text-center text-gray-400 text-sm py-8">No hay resultados para "{search}"</p>
+          )}
+        </div>
+      )}
+
+      {confirmDel && (
+        <ConfirmModal
+          message="¿Eliminar este suscriptor?"
+          onConfirm={() => deleteSub(confirmDel)}
           onCancel={() => setConfirmDel(null)}
         />
       )}

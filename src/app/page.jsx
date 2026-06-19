@@ -1,6 +1,8 @@
 'use client';
 import { useMemo, useState, useEffect } from 'react';
 import { useStore, CAT_LABELS, CAT_ICONS, CAT_IMAGES, BRANDS, formatPrice } from '@/lib/store';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Cart from '@/components/Cart';
@@ -186,24 +188,82 @@ function Inicio() {
       </div>
 
       {/* ── Newsletter ── */}
-      <div className="max-w-7xl mx-auto px-4 mt-14">
-        <div className="bg-gradient-to-br from-[#C8102E] to-[#7A0019] rounded-2xl px-8 py-10 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-white -translate-y-32" />
-            <div className="absolute bottom-0 right-1/4 w-48 h-48 rounded-full bg-white translate-y-24" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-2">Newsletter</p>
-            <h3 className="text-white text-2xl font-black mb-2">Recibí promociones exclusivas</h3>
-            <p className="text-white/70 mb-6 text-sm">Suscribite y enterate de todas las ofertas antes que nadie</p>
+      <Newsletter />
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   NEWSLETTER — guarda emails en Firestore
+   Los ves en el panel admin → pestaña "Suscriptores"
+════════════════════════════════════════════════════ */
+function Newsletter() {
+  const [email, setEmail]   = useState('');
+  const [status, setStatus] = useState('idle'); // idle | loading | ok | error | exists
+
+  const handleSubmit = async () => {
+    if (!email || !email.includes('@')) {
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 3000);
+      return;
+    }
+    setStatus('loading');
+    try {
+      await addDoc(collection(db, 'newsletter'), {
+        email: email.toLowerCase().trim(),
+        fecha: serverTimestamp(),
+        origen: 'web',
+      });
+      setStatus('ok');
+      setEmail('');
+      setTimeout(() => setStatus('idle'), 4000);
+    } catch (e) {
+      console.error(e);
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 3000);
+    }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 mt-14">
+      <div className="bg-gradient-to-br from-[#C8102E] to-[#7A0019] rounded-2xl px-8 py-10 text-center relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-white -translate-y-32" />
+          <div className="absolute bottom-0 right-1/4 w-48 h-48 rounded-full bg-white translate-y-24" />
+        </div>
+        <div className="relative z-10">
+          <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-2">Newsletter</p>
+          <h3 className="text-white text-2xl font-black mb-2">Recibí promociones exclusivas</h3>
+          <p className="text-white/70 mb-6 text-sm">Suscribite y enterate de todas las ofertas antes que nadie</p>
+
+          {status === 'ok' ? (
+            <div className="flex items-center justify-center gap-2 bg-white/20 text-white font-semibold px-6 py-3 rounded-xl max-w-md mx-auto">
+              ✅ ¡Gracias! Te suscribiste correctamente.
+            </div>
+          ) : (
             <div className="flex gap-3 max-w-md mx-auto">
-              <input type="email" placeholder="tu@email.com"
-                className="flex-1 bg-white/15 border border-white/30 text-white placeholder-white/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/60 transition-colors" />
-              <button className="bg-white text-[#C8102E] font-bold px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors text-sm whitespace-nowrap">
-                Suscribirme
+              <input
+                type="email"
+                placeholder="tu@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                disabled={status === 'loading'}
+                className={`flex-1 bg-white/15 border text-white placeholder-white/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/60 transition-colors disabled:opacity-60 ${
+                  status === 'error' ? 'border-yellow-400' : 'border-white/30'
+                }`}
+              />
+              <button
+                onClick={handleSubmit}
+                disabled={status === 'loading'}
+                className="bg-white text-[#C8102E] font-bold px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors text-sm whitespace-nowrap disabled:opacity-60">
+                {status === 'loading' ? '...' : 'Suscribirme'}
               </button>
             </div>
-          </div>
+          )}
+          {status === 'error' && (
+            <p className="text-yellow-300 text-xs mt-2">Ingresá un email válido e intentá de nuevo.</p>
+          )}
         </div>
       </div>
     </div>
