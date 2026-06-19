@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useStore, formatPrice, ORDER_STATUS_LABELS, CAT_LABELS, CAT_ICONS } from '@/lib/store';
+import { useStore, formatPrice, ORDER_STATUS_LABELS, CAT_LABELS, CAT_ICONS, DEFAULT_CATS, getCatLabels, getCatIcons } from '@/lib/store';
 import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
@@ -125,6 +125,7 @@ export default function Admin() {
     { key:'promos',    label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
     { key:'banners',   label:'Banners',          icon:<Image className="w-4 h-4"/> },
     { key:'paginas',   label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
+    { key:'categorias', label:'Categorías',        icon:<LayoutDashboard className="w-4 h-4"/> },
     { key:'programas', label:'Programas',         icon:<Tag className="w-4 h-4"/> },
     { key:'config',    label:'Configuración',    icon:<Settings className="w-4 h-4"/> },
   ];
@@ -170,6 +171,7 @@ export default function Admin() {
         {tab==='promos'    && <PromosTab/>}
         {tab==='banners'   && <BannersTab/>}
         {tab==='paginas'   && <PaginasTab/>}
+        {tab==='categorias' && <CategoriasTab/>}
         {tab==='programas' && <ProgramasTab/>}
         {tab==='config'    && <ConfigTab/>}
       </div>
@@ -400,7 +402,7 @@ function ProductosTab() {
         </div>
         <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]">
           <option value="todos">Todas las categorías</option>
-          {Object.entries(CAT_LABELS).filter(([k])=>k!=='todos').map(([k,v])=><option key={k} value={k}>{v}</option>)}
+          {(state.categorias||[]).map(c=><option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
         </select>
         <button onClick={()=>setEditingProduct({...EMPTY_PRODUCT,_isNew:true})} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
           <Plus className="w-4 h-4"/> Nuevo
@@ -853,6 +855,279 @@ function ConfigTab() {
         {msg&&<div className={`mt-3 flex items-center gap-2 text-sm p-3 rounded-lg ${msg.type==='ok'?'bg-green-50 text-green-700':'bg-red-50 text-red-600'}`}>{msg.type==='ok'?<CheckCircle className="w-4 h-4"/>:<AlertCircle className="w-4 h-4"/>}{msg.text}</div>}
         <button onClick={handleChangePass} className="mt-4 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors"><Save className="w-4 h-4"/>Cambiar contraseña</button>
       </div>
+    </div>
+  );
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   TAB: CATEGORÍAS
+   Permite agregar, editar, eliminar y reordenar categorías.
+   Los cambios se sincronizan con Firestore y se reflejan
+   en el menú, filtros y formulario de productos.
+═══════════════════════════════════════════════════════════ */
+const EMOJI_OPTIONS = ['💊','✨','🌸','👶','🪥','💪','💄','🏠','🧸','❤️','🏥','🛍️','🧴','🩺','💉','🌿','🍃','⚗️','🔬','🩹','👁️','🦷','🫀','🧬','🎀','🧪','🩻','💆','🛁','🌡️','💅','🌞','🌙'];
+
+function CategoriasTab() {
+  const { state, dispatch, saveConfig } = useStore();
+  const [editIdx, setEditIdx]   = useState(null);
+  const [form, setForm]         = useState({ key:'', label:'', icon:'💊' });
+  const [confirmDel, setConfirmDel] = useState(null);
+  const [showEmojis, setShowEmojis] = useState(false);
+  const [saved, setSaved]       = useState(false);
+
+  const categorias = state.categorias || DEFAULT_CATS;
+
+  const slugify = (str) => str.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+
+  const openNew = () => {
+    setForm({ key:'', label:'', icon:'💊', _isNew:true });
+    setEditIdx(-1);
+    setShowEmojis(false);
+    setSaved(false);
+  };
+
+  const openEdit = (i) => {
+    setForm({ ...categorias[i] });
+    setEditIdx(i);
+    setShowEmojis(false);
+    setSaved(false);
+  };
+
+  const save = () => {
+    if (!form.label.trim()) { alert('El nombre de la categoría es obligatorio.'); return; }
+    const key = form._isNew ? slugify(form.label) : form.key;
+    if (!key) { alert('El nombre no pudo generar un código válido.'); return; }
+    // Check duplicate key on new
+    if (form._isNew && categorias.some(c => c.key === key)) {
+      alert(`Ya existe una categoría con el código "${key}". Usá un nombre diferente.`);
+      return;
+    }
+    let updated;
+    if (form._isNew) {
+      updated = [...categorias, { key, label: form.label.trim(), icon: form.icon || '💊' }];
+    } else {
+      updated = categorias.map((c, i) =>
+        i === editIdx ? { ...c, label: form.label.trim(), icon: form.icon || c.icon } : c
+      );
+    }
+    dispatch({ type:'SET_CATEGORIAS', payload: updated });
+    saveConfig('categorias', updated);
+    setEditIdx(null);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const remove = (i) => {
+    const cat = categorias[i];
+    // Check if any product uses this category
+    const inUse = (state.products || []).filter(p => p.categoria === cat.key).length;
+    if (inUse > 0) {
+      if (!window.confirm(`Esta categoría tiene ${inUse} producto(s) asignado(s). Si la eliminás, esos productos quedarán sin categoría. ¿Continuás?`)) return;
+    }
+    const updated = categorias.filter((_, idx) => idx !== i);
+    dispatch({ type:'SET_CATEGORIAS', payload: updated });
+    saveConfig('categorias', updated);
+    setConfirmDel(null);
+  };
+
+  const moveUp = (i) => {
+    if (i === 0) return;
+    const a = [...categorias]; [a[i-1],a[i]]=[a[i],a[i-1]];
+    dispatch({ type:'SET_CATEGORIAS', payload: a });
+    saveConfig('categorias', a);
+  };
+
+  const moveDown = (i) => {
+    if (i === categorias.length - 1) return;
+    const a = [...categorias]; [a[i],a[i+1]]=[a[i+1],a[i]];
+    dispatch({ type:'SET_CATEGORIAS', payload: a });
+    saveConfig('categorias', a);
+  };
+
+  /* ── Formulario ── */
+  if (editIdx !== null) {
+    return (
+      <div>
+        <button onClick={() => { setEditIdx(null); }}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Volver a categorías
+        </button>
+        <h2 className="text-lg font-bold text-gray-900 mb-5">
+          {form._isNew ? 'Nueva categoría' : `Editar: ${form.label}`}
+        </h2>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col gap-5 max-w-lg">
+          {/* Ícono */}
+          <div>
+            <Label>Ícono (emoji)</Label>
+            <div className="flex items-center gap-3">
+              <div className="w-14 h-14 rounded-xl border-2 border-[#C8102E] flex items-center justify-center text-3xl bg-[#FFF0F3] flex-shrink-0">
+                {form.icon || '💊'}
+              </div>
+              <button type="button" onClick={() => setShowEmojis(!showEmojis)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-600 hover:bg-gray-50 transition-colors text-left">
+                {showEmojis ? 'Cerrar selector' : 'Elegir ícono →'}
+              </button>
+            </div>
+            {showEmojis && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                <div className="flex flex-wrap gap-2">
+                  {EMOJI_OPTIONS.map(e => (
+                    <button key={e} type="button"
+                      onClick={() => { setForm(f => ({...f, icon:e})); setShowEmojis(false); }}
+                      className={`text-2xl w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:scale-110 ${form.icon===e ? 'bg-[#C8102E]/10 ring-2 ring-[#C8102E]' : 'hover:bg-gray-200'}`}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-2">También podés escribir cualquier emoji en el campo de nombre</p>
+              </div>
+            )}
+          </div>
+
+          {/* Nombre */}
+          <div>
+            <Label>Nombre de la categoría *</Label>
+            <input
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] focus:border-transparent"
+              value={form.label}
+              onChange={e => setForm(f => ({...f, label: e.target.value}))}
+              placeholder="Ej: Dermocosmética, Perfumes, Medicamentos..."
+              autoFocus
+            />
+            {form._isNew && form.label && (
+              <p className="text-xs text-gray-400 mt-1.5">
+                Código interno que se generará: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{slugify(form.label)}</span>
+              </p>
+            )}
+            {!form._isNew && (
+              <p className="text-xs text-gray-400 mt-1.5">
+                Código interno: <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">{form.key}</span> (no se puede cambiar para no afectar productos existentes)
+              </p>
+            )}
+          </div>
+
+          {/* Preview */}
+          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+            <span className="text-2xl">{form.icon || '💊'}</span>
+            <span className="text-sm font-medium text-gray-700">{form.label || 'Vista previa'}</span>
+          </div>
+
+          <div className="flex gap-3">
+            <button onClick={() => setEditIdx(null)}
+              className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+              Cancelar
+            </button>
+            <button onClick={save}
+              className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-xl transition-colors">
+              <Save className="w-4 h-4" /> Guardar categoría
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Lista ── */
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Categorías de productos</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Aparecen en el menú, filtros y formulario de productos. Usá ↑↓ para reordenar.</p>
+        </div>
+        <button onClick={openNew}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+          <Plus className="w-4 h-4" /> Nueva categoría
+        </button>
+      </div>
+
+      {saved && (
+        <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 mb-3">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" /> Cambios guardados y sincronizados en todos los dispositivos
+        </div>
+      )}
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide w-10"></th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categoría</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Código interno</th>
+              <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Productos</th>
+              <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {categorias.map((cat, i) => {
+              const prodCount = (state.products||[]).filter(p => p.categoria === cat.key).length;
+              return (
+                <tr key={cat.key} className="hover:bg-gray-50 transition-colors">
+                  {/* Reordenar */}
+                  <td className="px-2 py-3">
+                    <div className="flex flex-col gap-0.5">
+                      <button onClick={() => moveUp(i)} disabled={i===0}
+                        className="p-1 rounded hover:bg-gray-100 disabled:opacity-20 transition-colors">
+                        <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                      <button onClick={() => moveDown(i)} disabled={i===categorias.length-1}
+                        className="p-1 rounded hover:bg-gray-100 disabled:opacity-20 transition-colors">
+                        <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </div>
+                  </td>
+                  {/* Nombre + ícono */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl w-8 text-center flex-shrink-0">{cat.icon}</span>
+                      <span className="font-medium text-gray-900">{cat.label}</span>
+                    </div>
+                  </td>
+                  {/* Código */}
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{cat.key}</span>
+                  </td>
+                  {/* Cantidad de productos */}
+                  <td className="px-4 py-3 text-center hidden md:table-cell">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${prodCount > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {prodCount} producto(s)
+                    </span>
+                  </td>
+                  {/* Acciones */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => openEdit(i)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setConfirmDel(i)}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-xs text-gray-400 mt-3">
+        Total: {categorias.length} categorías · Los cambios se aplican inmediatamente en toda la tienda
+      </p>
+
+      {confirmDel !== null && (
+        <ConfirmModal
+          message={`¿Eliminar la categoría "${categorias[confirmDel]?.label}"? Los productos asignados a ella quedarán sin categoría.`}
+          onConfirm={() => remove(confirmDel)}
+          onCancel={() => setConfirmDel(null)}
+        />
+      )}
     </div>
   );
 }

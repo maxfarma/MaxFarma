@@ -34,9 +34,24 @@ const DEMO_PAGINAS = {
   'terminos': { titulo:'Términos y Condiciones', contenido:'**1. Aceptación**\nAl usar el sitio aceptás estos términos.\n\n**2. Precios**\nSujetos a cambios sin previo aviso.\n\n**3. Privacidad**\nDatos protegidos por Ley 25.326.' },
 };
 
+// Categorías por defecto — se pueden editar desde el panel
+export const DEFAULT_CATS = [
+  { key:'dermocosmetica',   label:'Dermocosmética',      icon:'✨' },
+  { key:'perfumes',         label:'Perfumes',             icon:'🌸' },
+  { key:'bebe',             label:'Bebé & Maternidad',    icon:'👶' },
+  { key:'cuidado-personal', label:'Cuidado Personal',     icon:'🪥' },
+  { key:'nutricion',        label:'Nutrición & Deporte',  icon:'💪' },
+  { key:'maquillaje',       label:'Maquillaje',           icon:'💄' },
+  { key:'hogar',            label:'Hogar',                icon:'🏠' },
+  { key:'infantiles',       label:'Infantiles',           icon:'🧸' },
+  { key:'salud-sexual',     label:'Salud Sexual',         icon:'❤️' },
+  { key:'adultos-mayores',  label:'Adultos Mayores',      icon:'🏥' },
+];
+
 const initialState = {
   // Estos SIEMPRE vienen de Firestore — nunca de localStorage
   products: [], promos: [], banners: [], orders: [], programas: [],
+  categorias: DEFAULT_CATS,
   paginas: DEMO_PAGINAS,
   // Estos se persisten en localStorage (solo datos del usuario)
   cart: [], wishlist: [], searchHistory: [],
@@ -57,6 +72,7 @@ function reducer(state, action) {
     case 'SET_PAGINAS':        return { ...state, paginas: action.payload };
     case 'SET_ORDERS':         return { ...state, orders: action.payload };
     case 'SET_PROGRAMAS':      return { ...state, programas: action.payload };
+    case 'SET_CATEGORIAS':     return { ...state, categorias: action.payload };
     case 'SET_PROGRAMA':       return { ...state, currentPrograma: action.payload, currentSection: 'programa' };
     case 'ADD_ORDER':          return { ...state, orders: [action.payload, ...state.orders] };
     case 'UPDATE_ORDER_STATUS':return { ...state, orders: state.orders.map((o,i) => i===action.idx ? {...o,estado:action.status} : o) };
@@ -200,6 +216,15 @@ export function StoreProvider({ children }) {
       }
     }, err => { console.error('programas error:', err); }));
 
+    unsubs.push(onSnapshot(doc(db, COL, 'categorias'), snap => {
+      if (snap.exists()) {
+        dispatch({ type:'SET_CATEGORIAS', payload: snap.data().items ?? DEFAULT_CATS });
+      } else {
+        dispatch({ type:'SET_CATEGORIAS', payload: DEFAULT_CATS });
+        saveToFirestore('categorias', { items: DEFAULT_CATS });
+      }
+    }, err => { console.error('categorias error:', err); }));
+
     return () => unsubs.forEach(u => u());
   }, []);
 
@@ -214,7 +239,8 @@ export function StoreProvider({ children }) {
       case 'promos':    await saveToFirestore('promos',    { items: data }); break;
       case 'banners':   await saveToFirestore('banners',   { items: data }); break;
       case 'paginas':   await saveToFirestore('paginas',   { data });        break;
-      case 'programas': await saveToFirestore('programas', { items: data }); break;
+      case 'programas':  await saveToFirestore('programas',  { items: data }); break;
+      case 'categorias': await saveToFirestore('categorias', { items: data }); break;
     }
   };
 
@@ -231,18 +257,32 @@ export function useStore() {
   return ctx;
 }
 
-export const CAT_LABELS = {
-  todos:'Todos los productos', dermocosmetica:'Dermocosmética', perfumes:'Perfumes',
-  bebe:'Bebé & Maternidad', 'cuidado-personal':'Cuidado Personal', nutricion:'Nutrición & Deporte',
-  maquillaje:'Maquillaje', electro:'Electro Salud', hogar:'Hogar',
-  infantiles:'Infantiles', 'salud-sexual':'Salud Sexual', 'adultos-mayores':'Adultos Mayores',
-};
+// CAT_LABELS y CAT_ICONS ahora son helpers que leen del estado dinámico
+// Para compatibilidad, también exportamos versiones estáticas basadas en DEFAULT_CATS
+export const CAT_LABELS = Object.fromEntries([
+  ['todos', 'Todos los productos'],
+  ...DEFAULT_CATS.map(c => [c.key, c.label]),
+]);
 
-export const CAT_ICONS = {
-  todos:'🛍️', dermocosmetica:'✨', perfumes:'🌸', bebe:'👶', 'cuidado-personal':'🪥',
-  nutricion:'💪', maquillaje:'💄', electro:'⚡', hogar:'🏠',
-  infantiles:'🧸', 'salud-sexual':'❤️', 'adultos-mayores':'🏥',
-};
+export const CAT_ICONS = Object.fromEntries([
+  ['todos', '🛍️'],
+  ...DEFAULT_CATS.map(c => [c.key, c.icon]),
+]);
+
+// Helper para obtener labels/icons dinámicos desde el estado
+export function getCatLabels(categorias) {
+  return Object.fromEntries([
+    ['todos', 'Todos los productos'],
+    ...(categorias || DEFAULT_CATS).map(c => [c.key, c.label]),
+  ]);
+}
+
+export function getCatIcons(categorias) {
+  return Object.fromEntries([
+    ['todos', '🛍️'],
+    ...(categorias || DEFAULT_CATS).map(c => [c.key, c.icon]),
+  ]);
+}
 
 export const CAT_IMAGES = {};
 export const BRANDS = ['Bagó','Roemmers','Bayer','Vichy','ISDIN','Eucerin','La Roche-Posay','Neutrogena','Nivea','Pantene','Revlon',"Johnson's",'Pampers','Omron'];
