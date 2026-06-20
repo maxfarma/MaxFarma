@@ -14,8 +14,7 @@ import Admin from '@/components/Admin';
 import ToastContainer from '@/components/Toast';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ProgramaDescuento from '@/components/ProgramaDescuento';
-import { ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star, ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText, Droplets, Wind, Baby, Brush, Dumbbell, Zap, Home, Smile, Ribbon, Users, ShoppingBag } from 'lucide-react';
-
+import { ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star, ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText, Droplets, Wind, Baby, Brush, Dumbbell, Zap, Home as HomeIcon, Smile, Ribbon, Users, ShoppingBag } from 'lucide-react';
 export default function Home() {
   const { state } = useStore();
   const isPagina = state.currentSection?.startsWith('pagina-');
@@ -191,7 +190,7 @@ function getCatIcon(key) {
     nutricion:          <Dumbbell className="w-6 h-6" />,
     maquillaje:         <Sparkles className="w-6 h-6" />,
     electro:            <Zap className="w-6 h-6" />,
-    hogar:              <Home className="w-6 h-6" />,
+    hogar:              <HomeIcon className="w-6 h-6" />,
     infantiles:         <Smile className="w-6 h-6" />,
     'salud-sexual':     <Ribbon className="w-6 h-6" />,
     'adultos-mayores':  <Users className="w-6 h-6" />,
