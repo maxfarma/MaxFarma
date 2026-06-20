@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { useStore, CAT_LABELS, CAT_ICONS, CAT_IMAGES, BRANDS, formatPrice } from '@/lib/store';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -14,7 +14,7 @@ import Admin from '@/components/Admin';
 import ToastContainer from '@/components/Toast';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ProgramaDescuento from '@/components/ProgramaDescuento';
-import { ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star, ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText } from 'lucide-react';
+import { ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star, ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText, Droplets, Wind, Baby, Brush, Dumbbell, Zap, Home, Smile, Ribbon, Users, ShoppingBag } from 'lucide-react';
 
 export default function Home() {
   const { state } = useStore();
@@ -28,7 +28,7 @@ export default function Home() {
       <WhatsAppButton />
       <main className="min-h-screen bg-gray-50">
         {state.currentSection === 'inicio'    && <Inicio />}
-        {state.currentSection === 'productos' && <Productos />}
+        {state.currentSection === 'productos' && <Productos key={state.searchQuery + '|' + state.currentCategory} />}
         {state.currentSection === 'ofertas'   && <Ofertas />}
         {state.currentSection === 'promos'    && <Promos />}
         {state.currentSection === 'wishlist'  && <Wishlist />}
@@ -96,23 +96,7 @@ function Inicio() {
       {/* ── Categorías visuales ── */}
       <div className="max-w-7xl mx-auto px-4 mt-12">
         <SectionHeader title="Explorá por categoría" link={{ label: 'Ver todos los productos', section: 'productos' }} />
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mt-5">
-          {Object.entries(CAT_ICONS).map(([key, icon], i) => (
-            <button key={key}
-              onClick={() => dispatch({ type: 'SET_CATEGORY', payload: key })}
-              className={`group flex flex-col items-center gap-2 rounded-2xl p-4 border border-gray-100 bg-white hover:border-[#C8102E] hover:bg-[#FFF0F3] transition-all duration-200 animate-fade-up`}
-              style={{ animationDelay: `${i * 0.05}s` }}>
-              {CAT_IMAGES[key] ? (
-                <div className="w-12 h-12 rounded-xl overflow-hidden border border-gray-100 group-hover:border-[#C8102E]/30 transition-colors">
-                  <img src={CAT_IMAGES[key]} alt={CAT_LABELS[key]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </div>
-              ) : (
-                <span className="text-3xl group-hover:scale-110 transition-transform duration-200">{icon}</span>
-              )}
-              <span className="text-xs font-semibold text-gray-600 group-hover:text-[#C8102E] text-center leading-tight transition-colors">{CAT_LABELS[key]}</span>
-            </button>
-          ))}
-        </div>
+        <CategoriaGrid />
       </div>
 
       {/* ── Ofertas del día ── */}
@@ -188,18 +172,91 @@ function Inicio() {
       </div>
 
       {/* ── Newsletter ── */}
-      <Newsletter />
+      <div className="max-w-7xl mx-auto px-4 mt-14">
+        <div className="bg-gradient-to-br from-[#C8102E] to-[#7A0019] rounded-2xl px-8 py-10 text-center relative overflow-hidden">
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-white -translate-y-32" />
+            <div className="absolute bottom-0 right-1/4 w-48 h-48 rounded-full bg-white translate-y-24" />
+          </div>
+          <div className="relative z-10">
+            <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-2">Newsletter</p>
+            <h3 className="text-white text-2xl font-black mb-2">Recibí promociones exclusivas</h3>
+            <p className="text-white/70 mb-6 text-sm">Suscribite y enterate de todas las ofertas antes que nadie</p>
+            <div className="flex gap-3 max-w-md mx-auto">
+              <input type="email" placeholder="tu@email.com"
+                className="flex-1 bg-white/15 border border-white/30 text-white placeholder-white/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/60 transition-colors" />
+              <button className="bg-white text-[#C8102E] font-bold px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors text-sm whitespace-nowrap">
+                Suscribirme
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ════════════════════════════════════════════════════
+   CATEGORIAS GRID — iconos profesionales SVG
+════════════════════════════════════════════════════ */
+const CAT_SVG_ICONS = {
+  todos:            <ShoppingBag className="w-6 h-6" />,
+  dermocosmetica:   <Droplets className="w-6 h-6" />,
+  perfumes:         <Wind className="w-6 h-6" />,
+  bebe:             <Baby className="w-6 h-6" />,
+  'cuidado-personal': <Brush className="w-6 h-6" />,
+  nutricion:        <Dumbbell className="w-6 h-6" />,
+  maquillaje:       <Sparkles className="w-6 h-6" />,
+  electro:          <Zap className="w-6 h-6" />,
+  hogar:            <Home className="w-6 h-6" />,
+  infantiles:       <Smile className="w-6 h-6" />,
+  'salud-sexual':   <Ribbon className="w-6 h-6" />,
+  'adultos-mayores':<Users className="w-6 h-6" />,
+};
+
+function CategoriaGrid() {
+  const { state, dispatch } = useStore();
+  // Usar categorías dinámicas si están disponibles, sino las estáticas
+  const cats = state.categorias && state.categorias.length > 0
+    ? [{ key:'todos', label:'Todos los productos' }, ...state.categorias]
+    : Object.entries(CAT_LABELS).map(([key, label]) => ({ key, label }));
+
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mt-5">
+      {cats.map((cat, i) => {
+        const isActive = state.currentCategory === cat.key;
+        const icon = CAT_SVG_ICONS[cat.key] || <ShoppingBag className="w-6 h-6" />;
+        return (
+          <button key={cat.key}
+            onClick={() => dispatch({ type: 'SET_CATEGORY', payload: cat.key })}
+            className={`group flex flex-col items-center gap-2.5 rounded-2xl p-4 border transition-all duration-200
+              ${isActive
+                ? 'border-[#C8102E] bg-[#FFF0F3] shadow-sm'
+                : 'border-gray-100 bg-white hover:border-[#C8102E] hover:bg-[#FFF0F3] hover:shadow-sm'
+              }`}
+            style={{ animationDelay: `${i * 0.04}s` }}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors
+              ${isActive ? 'bg-[#C8102E] text-white' : 'bg-gray-50 text-gray-500 group-hover:bg-[#C8102E] group-hover:text-white'}`}>
+              {icon}
+            </div>
+            <span className={`text-xs font-semibold text-center leading-tight transition-colors
+              ${isActive ? 'text-[#C8102E]' : 'text-gray-600 group-hover:text-[#C8102E]'}`}>
+              {cat.label}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 /* ════════════════════════════════════════════════════
    NEWSLETTER — guarda emails en Firestore
-   Los ves en el panel admin → pestaña "Suscriptores"
 ════════════════════════════════════════════════════ */
 function Newsletter() {
   const [email, setEmail]   = useState('');
-  const [status, setStatus] = useState('idle'); // idle | loading | ok | error | exists
+  const [status, setStatus] = useState('idle');
 
   const handleSubmit = async () => {
     if (!email || !email.includes('@')) {
@@ -216,9 +273,9 @@ function Newsletter() {
       });
       setStatus('ok');
       setEmail('');
-      setTimeout(() => setStatus('idle'), 4000);
+      setTimeout(() => setStatus('idle'), 5000);
     } catch (e) {
-      console.error(e);
+      console.error('Newsletter error:', e);
       setStatus('error');
       setTimeout(() => setStatus('idle'), 3000);
     }
@@ -235,10 +292,9 @@ function Newsletter() {
           <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-2">Newsletter</p>
           <h3 className="text-white text-2xl font-black mb-2">Recibí promociones exclusivas</h3>
           <p className="text-white/70 mb-6 text-sm">Suscribite y enterate de todas las ofertas antes que nadie</p>
-
           {status === 'ok' ? (
             <div className="flex items-center justify-center gap-2 bg-white/20 text-white font-semibold px-6 py-3 rounded-xl max-w-md mx-auto">
-              ✅ ¡Gracias! Te suscribiste correctamente.
+              ✓ ¡Gracias! Te suscribiste correctamente.
             </div>
           ) : (
             <div className="flex gap-3 max-w-md mx-auto">
@@ -249,15 +305,11 @@ function Newsletter() {
                 onChange={e => setEmail(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                 disabled={status === 'loading'}
-                className={`flex-1 bg-white/15 border text-white placeholder-white/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/60 transition-colors disabled:opacity-60 ${
-                  status === 'error' ? 'border-yellow-400' : 'border-white/30'
-                }`}
+                className={`flex-1 bg-white/15 border text-white placeholder-white/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/60 transition-colors disabled:opacity-60 ${status === 'error' ? 'border-yellow-400' : 'border-white/30'}`}
               />
-              <button
-                onClick={handleSubmit}
-                disabled={status === 'loading'}
+              <button onClick={handleSubmit} disabled={status === 'loading'}
                 className="bg-white text-[#C8102E] font-bold px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors text-sm whitespace-nowrap disabled:opacity-60">
-                {status === 'loading' ? '...' : 'Suscribirme'}
+                {status === 'loading' ? 'Enviando...' : 'Suscribirme'}
               </button>
             </div>
           )}

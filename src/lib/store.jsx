@@ -36,16 +36,16 @@ const DEMO_PAGINAS = {
 
 // Categorías por defecto — se pueden editar desde el panel
 export const DEFAULT_CATS = [
-  { key:'dermocosmetica',   label:'Dermocosmética',      icon:'✨' },
-  { key:'perfumes',         label:'Perfumes',             icon:'🌸' },
-  { key:'bebe',             label:'Bebé & Maternidad',    icon:'👶' },
-  { key:'cuidado-personal', label:'Cuidado Personal',     icon:'🪥' },
-  { key:'nutricion',        label:'Nutrición & Deporte',  icon:'💪' },
-  { key:'maquillaje',       label:'Maquillaje',           icon:'💄' },
-  { key:'hogar',            label:'Hogar',                icon:'🏠' },
-  { key:'infantiles',       label:'Infantiles',           icon:'🧸' },
-  { key:'salud-sexual',     label:'Salud Sexual',         icon:'❤️' },
-  { key:'adultos-mayores',  label:'Adultos Mayores',      icon:'🏥' },
+  { key:'dermocosmetica',   label:'Dermocosmética',      icon:'droplets' },
+  { key:'perfumes',         label:'Perfumes',             icon:'wind' },
+  { key:'bebe',             label:'Bebé & Maternidad',    icon:'baby' },
+  { key:'cuidado-personal', label:'Cuidado Personal',     icon:'brush' },
+  { key:'nutricion',        label:'Nutrición & Deporte',  icon:'dumbbell' },
+  { key:'maquillaje',       label:'Maquillaje',           icon:'sparkles' },
+  { key:'hogar',            label:'Hogar',                icon:'home' },
+  { key:'infantiles',       label:'Infantiles',           icon:'smile' },
+  { key:'salud-sexual',     label:'Salud Sexual',         icon:'ribbon' },
+  { key:'adultos-mayores',  label:'Adultos Mayores',      icon:'users' },
 ];
 
 const initialState = {

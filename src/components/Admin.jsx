@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore, formatPrice, ORDER_STATUS_LABELS, CAT_LABELS, CAT_ICONS, DEFAULT_CATS, getCatLabels, getCatIcons } from '@/lib/store';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query as firestoreQuery, orderBy, doc as firestoreDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import ImageField from '@/components/ImageField';
 import {
@@ -73,7 +73,7 @@ export default function Admin() {
 
   useEffect(() => {
     if (!unlocked) return;
-    const q = query(collection(db,'pedidos'), orderBy('fecha','desc'));
+    const q = firestoreQuery(collection(db,'pedidos'), orderBy('fecha','desc'));
     const unsub = onSnapshot(q, snap => { setOrders(snap.docs.map(d=>({...d.data(),_fbId:d.id}))); });
     return () => unsub();
   }, [unlocked]);
@@ -1451,8 +1451,7 @@ function SuscriptoresTab() {
   const [confirmDel, setConfirmDel] = useState(null);
 
   useEffect(() => {
-    const { collection, onSnapshot, orderBy, query } = require('firebase/firestore');
-    const q = query(collection(db, 'newsletter'), orderBy('fecha', 'desc'));
+    const q = firestoreQuery(collection(db, 'newsletter'), orderBy('fecha', 'desc'));
     const unsub = onSnapshot(q, snap => {
       setSubs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
@@ -1484,8 +1483,7 @@ function SuscriptoresTab() {
   };
 
   const deleteSub = async (id) => {
-    const { doc, deleteDoc } = require('firebase/firestore');
-    await deleteDoc(doc(db, 'newsletter', id));
+    await deleteDoc(firestoreDoc(db, 'newsletter', id));
     setConfirmDel(null);
   };
 
