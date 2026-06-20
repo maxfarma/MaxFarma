@@ -172,26 +172,7 @@ function Inicio() {
       </div>
 
       {/* ── Newsletter ── */}
-      <div className="max-w-7xl mx-auto px-4 mt-14">
-        <div className="bg-gradient-to-br from-[#C8102E] to-[#7A0019] rounded-2xl px-8 py-10 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-white -translate-y-32" />
-            <div className="absolute bottom-0 right-1/4 w-48 h-48 rounded-full bg-white translate-y-24" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-2">Newsletter</p>
-            <h3 className="text-white text-2xl font-black mb-2">Recibí promociones exclusivas</h3>
-            <p className="text-white/70 mb-6 text-sm">Suscribite y enterate de todas las ofertas antes que nadie</p>
-            <div className="flex gap-3 max-w-md mx-auto">
-              <input type="email" placeholder="tu@email.com"
-                className="flex-1 bg-white/15 border border-white/30 text-white placeholder-white/50 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/60 transition-colors" />
-              <button className="bg-white text-[#C8102E] font-bold px-5 py-2.5 rounded-xl hover:bg-gray-100 transition-colors text-sm whitespace-nowrap">
-                Suscribirme
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Newsletter />
     </div>
   );
 }
@@ -200,24 +181,26 @@ function Inicio() {
 /* ════════════════════════════════════════════════════
    CATEGORIAS GRID — iconos profesionales SVG
 ════════════════════════════════════════════════════ */
-const CAT_SVG_ICONS = {
-  todos:            <ShoppingBag className="w-6 h-6" />,
-  dermocosmetica:   <Droplets className="w-6 h-6" />,
-  perfumes:         <Wind className="w-6 h-6" />,
-  bebe:             <Baby className="w-6 h-6" />,
-  'cuidado-personal': <Brush className="w-6 h-6" />,
-  nutricion:        <Dumbbell className="w-6 h-6" />,
-  maquillaje:       <Sparkles className="w-6 h-6" />,
-  electro:          <Zap className="w-6 h-6" />,
-  hogar:            <Home className="w-6 h-6" />,
-  infantiles:       <Smile className="w-6 h-6" />,
-  'salud-sexual':   <Ribbon className="w-6 h-6" />,
-  'adultos-mayores':<Users className="w-6 h-6" />,
-};
+function getCatIcon(key) {
+  const icons = {
+    todos:              <ShoppingBag className="w-6 h-6" />,
+    dermocosmetica:     <Droplets className="w-6 h-6" />,
+    perfumes:           <Wind className="w-6 h-6" />,
+    bebe:               <Baby className="w-6 h-6" />,
+    'cuidado-personal': <Brush className="w-6 h-6" />,
+    nutricion:          <Dumbbell className="w-6 h-6" />,
+    maquillaje:         <Sparkles className="w-6 h-6" />,
+    electro:            <Zap className="w-6 h-6" />,
+    hogar:              <Home className="w-6 h-6" />,
+    infantiles:         <Smile className="w-6 h-6" />,
+    'salud-sexual':     <Ribbon className="w-6 h-6" />,
+    'adultos-mayores':  <Users className="w-6 h-6" />,
+  };
+  return icons[key] || <ShoppingBag className="w-6 h-6" />;
+}
 
 function CategoriaGrid() {
   const { state, dispatch } = useStore();
-  // Usar categorías dinámicas si están disponibles, sino las estáticas
   const cats = state.categorias && state.categorias.length > 0
     ? [{ key:'todos', label:'Todos los productos' }, ...state.categorias]
     : Object.entries(CAT_LABELS).map(([key, label]) => ({ key, label }));
@@ -226,7 +209,7 @@ function CategoriaGrid() {
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mt-5">
       {cats.map((cat, i) => {
         const isActive = state.currentCategory === cat.key;
-        const icon = CAT_SVG_ICONS[cat.key] || <ShoppingBag className="w-6 h-6" />;
+        const icon = getCatIcon(cat.key);
         return (
           <button key={cat.key}
             onClick={() => dispatch({ type: 'SET_CATEGORY', payload: cat.key })}
