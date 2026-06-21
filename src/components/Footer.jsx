@@ -29,7 +29,7 @@ export default function Footer() {
           {[
             { icon:'🚚', title:'Envío a domicilio',   sub:'En tu zona' },
             { icon:'🔒', title:'Compra 100% segura',  sub:'Datos protegidos' },
-            { icon:'💳', title:'Pagá con Go Cuotas',  sub:'Cuotas con tu débito' },
+            { icon:'💳', title:'Go Cuotas — 4 cuotas', sub:'Sin interés con débito' },
             { icon:'🏥', title:'Farmacia habilitada', sub:'Disposición ANMAT' },
           ].map((b,i)=>(
             <div key={i} className="flex items-center gap-3">
@@ -91,15 +91,15 @@ export default function Footer() {
             <Instagram className="w-3 h-3" /> @maxfarma.chaco
           </a>
 
-          {/* AFIP Data Fiscal */}
+          {/* ARCA (ex AFIP) Data Fiscal */}
           <div className="mt-2">
             <a
-              href={`http://qr.afip.gob.ar/?qr=30718830229`}
+              href="https://www.arca.gob.ar/dr_online/dr_constancia.aspx?nrocuit=30718830229"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-400 transition-colors border border-gray-800 rounded-lg px-2.5 py-1.5"
             >
-              <ExternalLink className="w-3 h-3" /> Data Fiscal AFIP · CUIT 30-71883022-9
+              <ExternalLink className="w-3 h-3" /> Constancia ARCA · CUIT 30-71883022-9
             </a>
           </div>
         </div>
@@ -114,6 +114,7 @@ export default function Footer() {
               ['ofertas','Ofertas'],
               ['promos','Promos bancarias'],
               ['wishlist','Mis favoritos'],
+            ['obras-sociales','Obras sociales'],
             ].map(([k,l])=>(
               <li key={k}>
                 <button onClick={()=>nav(k)} className="hover:text-white transition-colors text-left">{l}</button>
@@ -133,6 +134,7 @@ export default function Footer() {
               ['devoluciones','Cambios y devoluciones'],
               ['medios-de-pago','Medios de pago'],
               ['terminos','Términos y condiciones'],
+              ['obras-sociales','Obras sociales que atendemos'],
             ].map(([slug,label])=>(
               <li key={slug}>
                 <button onClick={()=>navPag(slug)} className="hover:text-white transition-colors text-left">{label}</button>
@@ -186,7 +188,7 @@ export default function Footer() {
       {/* Sub-footer */}
       <div className="border-t border-gray-900">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-700">
-          <p>© {y} MaxFarma — ZIBELGON S.R.L. · CUIT 30-71883022-9 · Farmacia habilitada.</p>
+          <p>© {y} Todos los derechos reservados a Farmacias MaxFarma, propiedad de ZIBELGON S.R.L. (CUIT: 30-71883022-9) · Farmacia habilitada.</p>
           <div className="flex gap-4 flex-wrap">
             <button onClick={()=>navPag('terminos')} className="hover:text-gray-400 transition-colors">Privacidad</button>
             <button onClick={()=>navPag('terminos')} className="hover:text-gray-400 transition-colors">Términos</button>

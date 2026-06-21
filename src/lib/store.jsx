@@ -91,11 +91,13 @@ function reducer(state, action) {
     }
     case 'SET_SECTION':        return { ...state, currentSection: action.payload };
     case 'SET_CATEGORY':       return { ...state, currentCategory: action.payload, searchQuery:'', currentSection:'productos' };
-    // FIX: historial solo se guarda cuando viene con saveToHistory:true
+    // FIX: al buscar → resetea categoría a 'todos' y va a productos
     case 'SET_SEARCH':         return {
       ...state,
       searchQuery: action.payload,
-      currentSection: action.payload ? 'productos' : state.currentSection,
+      // Si hay texto de búsqueda: ir a productos y resetear categoría a 'todos'
+      currentSection:  action.payload ? 'productos' : state.currentSection,
+      currentCategory: action.payload ? 'todos'     : state.currentCategory,
       searchHistory: action.saveToHistory && action.payload && !state.searchHistory.includes(action.payload)
         ? [action.payload, ...state.searchHistory].slice(0, 5)
         : state.searchHistory,
@@ -109,8 +111,12 @@ function reducer(state, action) {
 }
 
 const COL = 'config';
-async function saveToFirestore(docId, payload) {
-  try { await setDoc(doc(db, COL, docId), payload, { merge: true }); }
+async function saveToFirestore(docId, payload, merge = false) {
+  try {
+    // Para productos, banners, promos, programas, categorias: NUNCA merge
+    // merge:true puede causar que un import de Excel quede mezclado con datos viejos
+    await setDoc(doc(db, COL, docId), payload, { merge });
+  }
   catch (e) { console.error('Firestore save error:', e); }
 }
 
@@ -154,11 +160,19 @@ export function StoreProvider({ children }) {
 
     unsubs.push(onSnapshot(doc(db, COL, 'products'), snap => {
       if (snap.exists()) {
-        // Si Firestore tiene array vacío [] significa que el admin borró todos los productos
-        dispatch({ type:'SET_PRODUCTS', payload: snap.data().items ?? DEMO_PRODUCTS });
+        const items = snap.data().items;
+        // Si items es array (aunque vacío) → respetar lo que dice Firestore
+        // Solo usar DEMO si items es null o undefined (documento recién creado)
+        if (Array.isArray(items)) {
+          dispatch({ type:'SET_PRODUCTS', payload: items });
+        } else {
+          dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
+          saveToFirestore('products', { items: DEMO_PRODUCTS }, false);
+        }
       } else {
+        // Documento no existe → cargar demo y crearlo en Firestore
         dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
-        saveToFirestore('products', { items: DEMO_PRODUCTS });
+        saveToFirestore('products', { items: DEMO_PRODUCTS }, false);
       }
       markLoaded();
     }, err => {
