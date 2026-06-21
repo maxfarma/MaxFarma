@@ -111,13 +111,45 @@ function reducer(state, action) {
 }
 
 const COL = 'config';
+const CHUNK_SIZE = 500; // max productos por documento Firestore (límite 1MB)
+
 async function saveToFirestore(docId, payload, merge = false) {
   try {
-    // Para productos, banners, promos, programas, categorias: NUNCA merge
-    // merge:true puede causar que un import de Excel quede mezclado con datos viejos
     await setDoc(doc(db, COL, docId), payload, { merge });
   }
   catch (e) { console.error('Firestore save error:', e); }
+}
+
+// Guarda productos en chunks para no superar el límite de 1MB de Firestore
+async function saveProductsChunked(products) {
+  try {
+    const chunks = [];
+    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
+      chunks.push(products.slice(i, i + CHUNK_SIZE));
+    }
+    // Guardar metadata: cuántos chunks hay
+    await setDoc(doc(db, COL, 'products_meta'), { 
+      totalChunks: chunks.length, 
+      totalProducts: products.length,
+      updatedAt: new Date().toISOString()
+    });
+    // Guardar cada chunk
+    const saves = chunks.map((chunk, i) =>
+      setDoc(doc(db, COL, `products_chunk_${i}`), { items: chunk })
+    );
+    await Promise.all(saves);
+    // Limpiar chunks viejos que ya no se usan
+    for (let i = chunks.length; i < 10; i++) {
+      try {
+        const { deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(doc(db, COL, `products_chunk_${i}`));
+      } catch {}
+    }
+    console.log(`✓ ${products.length} productos guardados en ${chunks.length} chunk(s)`);
+  } catch (e) {
+    console.error('Error guardando productos chunked:', e);
+    throw e;
+  }
 }
 
 const StoreContext = createContext(null);
@@ -158,25 +190,31 @@ export function StoreProvider({ children }) {
       }
     };
 
-    unsubs.push(onSnapshot(doc(db, COL, 'products'), snap => {
-      if (snap.exists()) {
-        const items = snap.data().items;
-        // Si items es array (aunque vacío) → respetar lo que dice Firestore
-        // Solo usar DEMO si items es null o undefined (documento recién creado)
-        if (Array.isArray(items)) {
-          dispatch({ type:'SET_PRODUCTS', payload: items });
+    // Escuchar metadata de productos para saber cuántos chunks hay
+    unsubs.push(onSnapshot(doc(db, COL, 'products_meta'), async (metaSnap) => {
+      try {
+        if (metaSnap.exists()) {
+          const { totalChunks } = metaSnap.data();
+          // Leer todos los chunks en paralelo
+          const { getDoc } = await import('firebase/firestore');
+          const chunkPromises = Array.from({ length: totalChunks }, (_, i) =>
+            getDoc(doc(db, COL, `products_chunk_${i}`))
+          );
+          const chunkSnaps = await Promise.all(chunkPromises);
+          const allProducts = chunkSnaps.flatMap(s => s.exists() ? (s.data().items || []) : []);
+          dispatch({ type:'SET_PRODUCTS', payload: allProducts.length ? allProducts : DEMO_PRODUCTS });
         } else {
+          // No hay productos guardados aún — usar demo y guardar
           dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
-          saveToFirestore('products', { items: DEMO_PRODUCTS }, false);
+          await saveProductsChunked(DEMO_PRODUCTS);
         }
-      } else {
-        // Documento no existe → cargar demo y crearlo en Firestore
+      } catch (e) {
+        console.error('products load error:', e);
         dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
-        saveToFirestore('products', { items: DEMO_PRODUCTS }, false);
       }
       markLoaded();
     }, err => {
-      console.error('products error:', err);
+      console.error('products_meta error:', err);
       dispatch({ type:'SET_PRODUCTS', payload: DEMO_PRODUCTS });
       markLoaded();
     }));
