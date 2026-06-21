@@ -359,6 +359,9 @@ function ProductosTab() {
     return '¿Eliminar este producto?';
   };
 
+  const [xlsxMode, setXlsxMode] = useState('add'); // 'add' | 'replace'
+  const [xlsxModalData, setXlsxModalData] = useState(null); // productos leídos del Excel
+
   const handleXlsx = (e) => {
     const file = e.target.files?.[0]; if(!file) return;
     const reader = new FileReader();
@@ -374,21 +377,37 @@ function ProductosTab() {
           categoria: String(r.categoria||r.Categoria||r.CATEGORIA||'dermocosmetica'),
           precio:    Number(r.precio||r.Precio||r.PRECIO||0),
           precio_oferta: r.precio_oferta||r.PrecioOferta||'',
-          descripcion: String(r.descripcion||r.Descripcion||''),
+          descripcion: String(r.descripcion||r.Descripcion||'').slice(0,300),
           stock:     String(r.stock||r.Stock||'Disponible'),
           destacado: String(r.destacado||r.Destacado||'NO').toUpperCase(),
           imagen_url: String(r.imagen_url||r.ImagenUrl||r.imagen||''),
         })).filter(p=>p.nombre);
-        if(products.length===0){alert('No se encontraron productos.');return;}
-        if(window.confirm(`¿Importar ${products.length} productos? Reemplaza el catálogo actual.`)){
-          dispatch({ type:'SET_PRODUCTS', payload:products });
-          saveConfig('products', products);
-          setSelected(new Set());
-        }
+        if(products.length===0){alert('No se encontraron productos en el archivo.');return;}
+        // Mostrar modal de confirmación con opciones
+        setXlsxModalData(products);
+        setXlsxMode('add');
       } catch(err){alert('Error al leer XLSX: '+err.message);}
     };
     reader.readAsArrayBuffer(file);
     e.target.value='';
+  };
+
+  const confirmXlsxImport = () => {
+    if (!xlsxModalData) return;
+    let updated;
+    if (xlsxMode === 'replace') {
+      // Reemplazar todo
+      updated = xlsxModalData;
+    } else {
+      // Agregar al catálogo existente — si el código ya existe, actualizar; si no, agregar
+      const existing = new Map(state.products.map(p => [p.codigo, p]));
+      xlsxModalData.forEach(p => existing.set(p.codigo, p));
+      updated = Array.from(existing.values());
+    }
+    dispatch({ type:'SET_PRODUCTS', payload: updated });
+    saveConfig('products', updated);
+    setSelected(new Set());
+    setXlsxModalData(null);
   };
 
   if (editingProduct) return <ProductForm product={editingProduct} onSave={saveProduct} onCancel={()=>setEditingProduct(null)}/>;
@@ -518,6 +537,79 @@ function ProductosTab() {
           onConfirm={executeDelete}
           onCancel={()=>setConfirmDelete(null)}
         />
+      )}
+
+      {/* Modal de importación XLSX */}
+      {xlsxModalData && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={() => setXlsxModalData(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 text-lg mb-1">Importar productos</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Se encontraron <strong>{xlsxModalData.length} productos</strong> en el archivo. 
+              Actualmente tenés <strong>{state.products.length} productos</strong> en el catálogo.
+            </p>
+
+            {/* Opciones */}
+            <div className="flex flex-col gap-3 mb-6">
+              <button
+                onClick={() => setXlsxMode('add')}
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                  xlsxMode === 'add'
+                    ? 'border-[#C8102E] bg-[#FFF0F3]'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  xlsxMode === 'add' ? 'border-[#C8102E]' : 'border-gray-300'
+                }`}>
+                  {xlsxMode === 'add' && <div className="w-2.5 h-2.5 rounded-full bg-[#C8102E]" />}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Agregar al catálogo existente</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Los productos nuevos se suman. Si un código ya existe, se actualiza. 
+                    Total final: ~{state.products.length + xlsxModalData.length} productos.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setXlsxMode('replace')}
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                  xlsxMode === 'replace'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  xlsxMode === 'replace' ? 'border-red-500' : 'border-gray-300'
+                }`}>
+                  {xlsxMode === 'replace' && <div className="w-2.5 h-2.5 rounded-full bg-red-500" />}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Reemplazar todo el catálogo</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    ⚠ Borra los {state.products.length} productos actuales y los reemplaza 
+                    con los {xlsxModalData.length} del archivo.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setXlsxModalData(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
+                Cancelar
+              </button>
+              <button
+                onClick={confirmXlsxImport}
+                className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl transition-colors ${
+                  xlsxMode === 'replace' ? 'bg-red-600 hover:bg-red-700' : 'bg-[#C8102E] hover:bg-[#9B0D22]'
+                }`}>
+                {xlsxMode === 'replace' ? 'Reemplazar catálogo' : 'Agregar productos'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
