@@ -6,8 +6,8 @@ export const metadata = {
   title: 'MaxFarma — Farmacia Online',
   description: 'Tu farmacia de confianza en Ruta Nacional 6 Km 22,5.',
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: '/logo1.png',
+    apple: '/logo1.png',
   },
 };
 export default function RootLayout({ children }) {
