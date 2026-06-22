@@ -86,7 +86,14 @@ export default function ProductCard({ product, onQuickView }) {
         </div>
 
         {/* Cuotas hint */}
-        <p className="text-[11px] text-gray-400 mb-3">3 cuotas con Go Cuotas de <strong className="text-gray-600">${formatPrice(price / 3)}</strong></p>
+        <div className="mb-3 flex flex-col gap-0.5">
+          <p className="text-[11px] text-gray-500">
+            <span className="font-semibold text-gray-700">3 cuotas</span> sin interés con Visa/MC — <strong className="text-gray-700">${formatPrice(price / 3)}</strong>
+          </p>
+          <p className="text-[11px] text-gray-400">
+            4 cuotas con Go Cuotas — <strong>${formatPrice(price / 4)}</strong>
+          </p>
+        </div>
 
         <button
           onClick={e => {

@@ -2,7 +2,14 @@ import { Outfit } from 'next/font/google';
 import './globals.css';
 import { StoreProvider } from '@/lib/store';
 const outfit = Outfit({ subsets:['latin'], weight:['300','400','500','600','700','800','900'], variable:'--font-outfit' });
-export const metadata = { title:'MaxFarma - Farmacia Online | Ruta Nacional 6 Km 22,5', description:'MaxFarma - Tu farmacia de confianza. Salud, belleza y bienestar. Pedidos online con envío a domicilio.' };
+export const metadata = {
+  title: 'MaxFarma — Farmacia Online',
+  description: 'Tu farmacia de confianza en Ruta Nacional 6 Km 22,5.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
+};
 export default function RootLayout({ children }) {
   return (
     <html lang="es" className={outfit.variable}>

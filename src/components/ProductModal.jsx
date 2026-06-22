@@ -137,10 +137,17 @@ export default function ProductModal() {
                   <p className="text-sm text-gray-400 line-through">${formatPrice(originalPrice)}</p>
                 )}
                 <p className="text-3xl font-black text-[#C8102E]">${formatPrice(price)}</p>
-                <p className="text-xs text-gray-400 mt-0.5">3 cuotas con Go Cuotas de <strong>${formatPrice(price / 3)}</strong></p>
-                <p className="text-xs text-[#C8102E] font-semibold mt-0.5 flex items-center gap-1">
-                  <CreditCard className="w-3 h-3" /> Pagá en cuotas con tu débito via Go Cuotas
-                </p>
+                <div className="mt-2 flex flex-col gap-1.5">
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-[#1A1F71]" />
+                    3 cuotas sin interés con Visa / Mastercard
+                    <span className="text-[#C8102E] font-bold">${formatPrice(price / 3)}</span>
+                  </p>
+                  <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                    <CreditCard className="w-3 h-3 text-[#00C16E]" />
+                    4 cuotas con Go Cuotas (débito) — <strong>${formatPrice(price / 4)}</strong>
+                  </p>
+                </div>
               </div>
 
               {/* Stock */}
