@@ -753,42 +753,164 @@ function PromosTab() {
     </div>
   );
 
+  // Estado para búsqueda y filtros de la lista
+  const [promoSearch, setPromoSearch] = useState('');
+  const [promoFiltro, setPromoFiltro] = useState('todos'); // 'todos'|'activas'|'inactivas'|'con-descuento'|'con-cuotas'
+
+  const promosFiltradas = state.promos.filter((p, i) => {
+    // Filtro de búsqueda por nombre banco/tarjeta/detalle
+    if (promoSearch) {
+      const q = promoSearch.toLowerCase();
+      const match = (p.tarjeta||'').toLowerCase().includes(q) ||
+                    (p.tipo||'').toLowerCase().includes(q) ||
+                    (p.detalle||'').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    // Filtro rápido
+    if (promoFiltro === 'activas')       return (p.activa||'SI') === 'SI';
+    if (promoFiltro === 'inactivas')     return (p.activa||'SI') === 'NO';
+    if (promoFiltro === 'con-descuento') return p.descuento > 0;
+    if (promoFiltro === 'con-cuotas')    return p.cuotas > 0;
+    return true;
+  });
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
-        <p className="text-sm text-gray-400">{state.promos.length} promoción(es)</p>
-        <button onClick={openNew} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors"><Plus className="w-4 h-4"/>Nueva promo</button>
-      </div>
-      {state.promos.length===0 ? (
-        <div className="text-center py-20 bg-white rounded-xl border border-gray-100"><CreditCard className="w-10 h-10 text-gray-200 mx-auto mb-3"/><p className="text-gray-400 text-sm">No hay promos.</p></div>
-      ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {state.promos.map((p,i)=>(
-            <div key={i} className={`bg-white rounded-xl border border-gray-200 p-5 transition-opacity ${(p.activa||'SI')==='NO'?'opacity-50':''}`}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-lg overflow-hidden">
-                    {p.imagen_url?<img src={p.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e=>e.target.style.display='none'}/>:'💳'}
-                  </div>
-                  <div><p className="font-semibold text-gray-900 text-sm">{p.tarjeta}</p><p className="text-xs text-gray-400">{p.tipo}</p></div>
-                </div>
-                <StatusBadge active={(p.activa||'SI')==='SI'}/>
-              </div>
-              {p.descuento>0&&<p className="text-2xl font-bold text-[#C8102E]">{p.descuento}% OFF</p>}
-              {p.cuotas>0&&<p className="text-sm font-semibold text-gray-700">{p.cuotas} cuotas sin interés</p>}
-              <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{p.detalle}</p>
-              <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-gray-100">
-                <button onClick={()=>toggle(i)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                  {(p.activa||'SI')==='SI'?<><EyeOff className="w-3.5 h-3.5"/>Ocultar</>:<><Eye className="w-3.5 h-3.5"/>Mostrar</>}
-                </button>
-                <button onClick={()=>openEdit(i)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Pencil className="w-4 h-4"/></button>
-                <button onClick={()=>setConfirmDel(i)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4"/></button>
-              </div>
-            </div>
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Buscador */}
+        <div className="relative flex-1 min-w-[200px]">
+          <input
+            value={promoSearch}
+            onChange={e => setPromoSearch(e.target.value)}
+            placeholder="Buscar por banco, tarjeta o descripción..."
+            className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          {promoSearch && (
+            <button onClick={() => setPromoSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Filtros rápidos */}
+        <div className="flex gap-1.5 flex-wrap">
+          {[
+            { key:'todos',          label:'Todas' },
+            { key:'activas',        label:'Activas' },
+            { key:'con-descuento',  label:'Con % OFF' },
+            { key:'con-cuotas',     label:'Con cuotas' },
+            { key:'inactivas',      label:'Inactivas' },
+          ].map(f => (
+            <button key={f.key} onClick={() => setPromoFiltro(f.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                promoFiltro === f.key
+                  ? 'bg-[#C8102E] text-white border-[#C8102E]'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+              }`}>
+              {f.label}
+            </button>
           ))}
         </div>
+
+        {/* Nueva promo */}
+        <button onClick={openNew}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors ml-auto">
+          <Plus className="w-4 h-4"/> Nueva promo
+        </button>
+      </div>
+
+      {/* Contador */}
+      <p className="text-xs text-gray-400 mb-4">
+        {promosFiltradas.length} de {state.promos.length} promoción(es)
+        {promoSearch && <span className="text-[#C8102E] font-medium"> · buscando "{promoSearch}"</span>}
+      </p>
+
+      {state.promos.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
+          <CreditCard className="w-10 h-10 text-gray-200 mx-auto mb-3"/>
+          <p className="text-gray-400 text-sm">No hay promos. Creá la primera con "Nueva promo".</p>
+        </div>
+      ) : promosFiltradas.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+          <CreditCard className="w-8 h-8 text-gray-200 mx-auto mb-2"/>
+          <p className="text-gray-400 text-sm">No hay promos que coincidan con el filtro</p>
+          <button onClick={() => { setPromoSearch(''); setPromoFiltro('todos'); }}
+            className="text-xs text-[#C8102E] font-semibold mt-2 hover:underline">
+            Limpiar filtros
+          </button>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {promosFiltradas.map((p, i) => {
+            // Buscar índice real en state.promos para editar/eliminar
+            const realIdx = state.promos.indexOf(p);
+            return (
+              <div key={realIdx} className={`bg-white rounded-xl border border-gray-200 p-5 transition-opacity ${(p.activa||'SI')==='NO'?'opacity-50':''}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {p.imagen_url
+                        ? <img src={p.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e=>e.target.style.display='none'}/>
+                        : <CreditCard className="w-5 h-5 text-gray-400" />}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm leading-tight">{p.tarjeta}</p>
+                      <p className="text-xs text-gray-400">{p.tipo}</p>
+                    </div>
+                  </div>
+                  <StatusBadge active={(p.activa||'SI')==='SI'}/>
+                </div>
+
+                {/* Badges de beneficios */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {p.descuento > 0 && (
+                    <span className="text-lg font-black text-[#C8102E]">{p.descuento}% OFF</span>
+                  )}
+                  {p.cuotas > 0 && (
+                    <span className="text-sm font-semibold text-gray-700 self-end">{p.cuotas} cuotas sin interés</span>
+                  )}
+                </div>
+
+                {p.dia && (
+                  <span className="inline-block text-xs bg-[#FFF0F3] text-[#C8102E] font-semibold px-2 py-0.5 rounded-full mb-1.5">{p.dia}</span>
+                )}
+                <p className="text-xs text-gray-500 line-clamp-2">{p.detalle}</p>
+                {p.vigencia && <p className="text-xs text-gray-400 mt-1">Hasta {p.vigencia}</p>}
+
+                <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-gray-100">
+                  <button onClick={()=>toggle(realIdx)}
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                    {(p.activa||'SI')==='SI'
+                      ? <><EyeOff className="w-3.5 h-3.5"/>Ocultar</>
+                      : <><Eye className="w-3.5 h-3.5"/>Mostrar</>}
+                  </button>
+                  <button onClick={()=>openEdit(realIdx)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                    <Pencil className="w-4 h-4"/>
+                  </button>
+                  <button onClick={()=>setConfirmDel(realIdx)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-4 h-4"/>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {confirmDel!==null&&<ConfirmModal message="¿Eliminar esta promo?" onConfirm={()=>remove(confirmDel)} onCancel={()=>setConfirmDel(null)}/>}
+
+      {confirmDel!==null && (
+        <ConfirmModal
+          message="¿Eliminar esta promo?"
+          onConfirm={()=>remove(confirmDel)}
+          onCancel={()=>setConfirmDel(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1412,80 +1534,7 @@ function ProgramasTab() {
         </div>
 
         {/* Productos del programa */}
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-bold text-gray-900">Productos con descuento</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Buscá por nombre o código. El % de descuento se muestra sobre el precio normal del producto.</p>
-            </div>
-            <button onClick={() => addProducto(form, set)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
-              <Plus className="w-4 h-4" /> Agregar producto
-            </button>
-          </div>
-
-          {(form.productos || []).length === 0 ? (
-            <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl">
-              <Percent className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-              <p className="text-gray-400 text-sm">Todavía no hay productos. Hacé clic en "Agregar producto".</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {(form.productos || []).map((prod, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2 items-start p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  {/* Imagen pequeña */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {prod.imagen_url
-                        ? <img src={prod.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e => e.target.style.display = 'none'} />
-                        : <Package className="w-4 h-4 text-gray-300" />}
-                    </div>
-                  </div>
-                  {/* Búsqueda por nombre */}
-                  <div className="col-span-6">
-                    <p className="text-xs text-gray-400 mb-1">Nombre del producto</p>
-                    <input
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
-                      value={prod.nombre}
-                      onChange={e => updateProducto(form, set, idx, 'nombre', e.target.value)}
-                      onBlur={e => autoComplete(form, set, idx, e.target.value)}
-                      placeholder="Escribí nombre o código..."
-                    />
-                  </div>
-                  {/* Código */}
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-400 mb-1">Código</p>
-                    <input
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
-                      value={prod.codigo}
-                      onChange={e => updateProducto(form, set, idx, 'codigo', e.target.value)}
-                      placeholder="EAN"
-                    />
-                  </div>
-                  {/* Descuento % */}
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-400 mb-1">% Descuento</p>
-                    <div className="relative">
-                      <input type="number" min="0" max="100"
-                        className="w-full border border-gray-200 rounded-lg pl-2 pr-6 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
-                        value={prod.descuento}
-                        onChange={e => updateProducto(form, set, idx, 'descuento', Number(e.target.value))}
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
-                    </div>
-                  </div>
-                  {/* Eliminar */}
-                  <div className="col-span-1 flex items-end justify-center pb-0.5">
-                    <button onClick={() => removeProducto(form, set, idx)}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors mt-5">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <ProductosSelectorPrograma form={form} set={set} state={state} />
 
         <div className="flex gap-3 mt-5">
           <button onClick={() => { setEditIdx(null); setForm(null); }}
@@ -1576,6 +1625,319 @@ function ProgramasTab() {
           onConfirm={() => remove(confirmDel)}
           onCancel={() => setConfirmDel(null)}
         />
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════
+   SELECTOR DE PRODUCTOS PARA PROGRAMAS DE DESCUENTO
+   - Buscador por nombre/marca/código
+   - Filtro por categoría
+   - Filtro "solo con descuento" (precio_oferta > 0)
+   - Selección múltiple con checkboxes
+   - Descuento por producto editable inline
+   - Botón "Agregar todos los seleccionados"
+════════════════════════════════════════════════════════════ */
+function ProductosSelectorPrograma({ form, set, state }) {
+  const [buscar, setBuscar]       = useState('');
+  const [catFiltro, setCatFiltro] = useState('todos');
+  const [soloDesc, setSoloDesc]   = useState(false);
+  const [seleccion, setSeleccion] = useState(new Set()); // codigos seleccionados del catálogo
+  const [descGlobal, setDescGlobal] = useState(0);  // % descuento global para agregar masivo
+  const [showSelector, setShowSelector] = useState(false);
+
+  const productosEnPrograma = form.productos || [];
+  const codigosEnPrograma   = new Set(productosEnPrograma.map(p => p.codigo));
+
+  // Catálogo filtrado
+  const catalogoFiltrado = useMemo(() => {
+    return state.products.filter(p => {
+      if (soloDesc && !(p.precio_oferta && parseFloat(p.precio_oferta) > 0)) return false;
+      if (catFiltro !== 'todos' && p.categoria !== catFiltro) return false;
+      if (buscar) {
+        const q = buscar.toLowerCase();
+        if (!(p.nombre||'').toLowerCase().includes(q) &&
+            !(p.marca||'').toLowerCase().includes(q) &&
+            !(p.codigo||'').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [state.products, buscar, catFiltro, soloDesc]);
+
+  const toggleSeleccion = (codigo) => {
+    setSeleccion(prev => {
+      const next = new Set(prev);
+      next.has(codigo) ? next.delete(codigo) : next.add(codigo);
+      return next;
+    });
+  };
+
+  const seleccionarTodos = () => {
+    const nuevos = catalogoFiltrado.filter(p => !codigosEnPrograma.has(p.codigo));
+    setSeleccion(new Set(nuevos.map(p => p.codigo)));
+  };
+
+  const limpiarSeleccion = () => setSeleccion(new Set());
+
+  const agregarSeleccionados = () => {
+    const productosAgregar = state.products
+      .filter(p => seleccion.has(p.codigo) && !codigosEnPrograma.has(p.codigo))
+      .map(p => ({
+        codigo:     p.codigo,
+        nombre:     p.nombre,
+        imagen_url: p.imagen_url || '',
+        descuento:  descGlobal || 0,
+      }));
+    set('productos', [...productosEnPrograma, ...productosAgregar]);
+    setSeleccion(new Set());
+    setShowSelector(false);
+  };
+
+  const updateDescuento = (idx, val) => {
+    const updated = productosEnPrograma.map((p, i) => i === idx ? { ...p, descuento: Number(val) } : p);
+    set('productos', updated);
+  };
+
+  const removeProducto = (idx) => {
+    set('productos', productosEnPrograma.filter((_, i) => i !== idx));
+  };
+
+  const categoriasDisp = state.categorias && state.categorias.length > 0
+    ? state.categorias : [];
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-bold text-gray-900">Productos con descuento</h3>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {productosEnPrograma.length} producto(s) en este programa
+          </p>
+        </div>
+        <button
+          onClick={() => setShowSelector(!showSelector)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+          <Plus className="w-4 h-4" />
+          {showSelector ? 'Cerrar buscador' : 'Buscar y agregar productos'}
+        </button>
+      </div>
+
+      {/* ── SELECTOR DE CATÁLOGO ── */}
+      {showSelector && (
+        <div className="mb-5 border border-[#C8102E]/20 rounded-xl bg-[#FFF9F9] p-4">
+          <p className="text-sm font-semibold text-gray-800 mb-3">
+            Buscá productos del catálogo para agregar al programa
+          </p>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {/* Buscador */}
+            <div className="relative flex-1 min-w-[200px]">
+              <input
+                value={buscar}
+                onChange={e => setBuscar(e.target.value)}
+                placeholder="Buscar por nombre, marca o código..."
+                className="w-full border border-gray-200 rounded-lg pl-8 pr-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+              />
+              <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+            </div>
+
+            {/* Filtro categoría */}
+            <select
+              value={catFiltro}
+              onChange={e => setCatFiltro(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]">
+              <option value="todos">Todas las categorías</option>
+              {categoriasDisp.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+
+            {/* Filtro solo con descuento */}
+            <button
+              onClick={() => setSoloDesc(!soloDesc)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                soloDesc
+                  ? 'bg-[#C8102E] text-white border-[#C8102E]'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+              }`}>
+              <Percent className="w-3.5 h-3.5" />
+              Solo con descuento
+            </button>
+          </div>
+
+          {/* Acciones masivas */}
+          <div className="flex flex-wrap items-center gap-3 mb-3 py-2.5 px-3 bg-white rounded-lg border border-gray-100">
+            <span className="text-xs text-gray-500">
+              {catalogoFiltrado.length} producto(s) encontrados
+              {seleccion.size > 0 && <span className="text-[#C8102E] font-semibold"> · {seleccion.size} seleccionado(s)</span>}
+            </span>
+            <button onClick={seleccionarTodos} className="text-xs text-[#C8102E] font-semibold hover:underline">
+              Seleccionar todos los visibles
+            </button>
+            {seleccion.size > 0 && (
+              <button onClick={limpiarSeleccion} className="text-xs text-gray-400 hover:text-gray-600">
+                Limpiar selección
+              </button>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-gray-500">% descuento para todos:</span>
+              <div className="relative w-20">
+                <input
+                  type="number" min="0" max="100"
+                  value={descGlobal}
+                  onChange={e => setDescGlobal(Number(e.target.value))}
+                  className="w-full border border-gray-200 rounded-lg pl-2 pr-5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+              </div>
+            </div>
+            {seleccion.size > 0 && (
+              <button
+                onClick={agregarSeleccionados}
+                className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-bold text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+                <Plus className="w-4 h-4" />
+                Agregar {seleccion.size} producto(s)
+              </button>
+            )}
+          </div>
+
+          {/* Lista del catálogo */}
+          <div className="max-h-72 overflow-y-auto flex flex-col gap-1.5 pr-1">
+            {catalogoFiltrado.length === 0 ? (
+              <p className="text-center text-gray-400 text-sm py-8">No hay productos que coincidan</p>
+            ) : (
+              catalogoFiltrado.map(p => {
+                const yaEsta   = codigosEnPrograma.has(p.codigo);
+                const marcado  = seleccion.has(p.codigo);
+                const precio   = p.precio_oferta && parseFloat(p.precio_oferta) > 0
+                  ? parseFloat(p.precio_oferta) : parseFloat(p.precio);
+                const tieneDesc = p.precio_oferta && parseFloat(p.precio_oferta) > 0;
+                const pct = tieneDesc
+                  ? Math.round((1 - parseFloat(p.precio_oferta) / parseFloat(p.precio)) * 100)
+                  : 0;
+
+                return (
+                  <div
+                    key={p.codigo}
+                    onClick={() => !yaEsta && toggleSeleccion(p.codigo)}
+                    className={`flex items-center gap-3 p-2.5 rounded-lg border transition-all cursor-pointer ${
+                      yaEsta  ? 'bg-gray-50 border-gray-100 opacity-50 cursor-not-allowed' :
+                      marcado ? 'bg-[#FFF0F3] border-[#C8102E]/30' :
+                                'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                    }`}>
+                    {/* Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={marcado || yaEsta}
+                      disabled={yaEsta}
+                      onChange={() => !yaEsta && toggleSeleccion(p.codigo)}
+                      className="w-4 h-4 accent-[#C8102E] flex-shrink-0"
+                      onClick={e => e.stopPropagation()}
+                    />
+                    {/* Imagen */}
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {p.imagen_url
+                        ? <img src={p.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e => e.target.style.display='none'}/>
+                        : <Package className="w-3.5 h-3.5 text-gray-300"/>}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-900 truncate">{p.nombre}</p>
+                      <p className="text-xs text-gray-400">{p.marca} · #{p.codigo}</p>
+                    </div>
+                    {/* Precio y badge */}
+                    <div className="text-right flex-shrink-0">
+                      <p className="text-xs font-semibold text-gray-900">${formatPrice(precio)}</p>
+                      {tieneDesc && (
+                        <span className="text-xs font-bold text-[#C8102E]">-{pct}%</span>
+                      )}
+                    </div>
+                    {yaEsta && (
+                      <span className="text-xs text-green-600 font-semibold flex-shrink-0">✓ Agregado</span>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── PRODUCTOS YA EN EL PROGRAMA ── */}
+      {productosEnPrograma.length === 0 ? (
+        <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl">
+          <Percent className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+          <p className="text-gray-400 text-sm">No hay productos en este programa todavía.</p>
+          <p className="text-gray-300 text-xs mt-1">Usá el buscador de arriba para agregar.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {/* Header tabla */}
+          <div className="grid grid-cols-12 gap-2 px-2 pb-1 border-b border-gray-100">
+            <div className="col-span-1"></div>
+            <div className="col-span-5 text-xs font-semibold text-gray-400 uppercase tracking-wide">Producto</div>
+            <div className="col-span-2 text-xs font-semibold text-gray-400 uppercase tracking-wide">Precio</div>
+            <div className="col-span-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">% Descuento programa</div>
+            <div className="col-span-1"></div>
+          </div>
+          {productosEnPrograma.map((prod, idx) => {
+            const catProd = state.products.find(p => p.codigo === prod.codigo);
+            const precio  = catProd
+              ? (catProd.precio_oferta && parseFloat(catProd.precio_oferta) > 0
+                  ? parseFloat(catProd.precio_oferta) : parseFloat(catProd.precio))
+              : 0;
+            return (
+              <div key={idx} className="grid grid-cols-12 gap-2 items-center p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+                {/* Imagen */}
+                <div className="col-span-1 flex justify-center">
+                  <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
+                    {prod.imagen_url
+                      ? <img src={prod.imagen_url} alt="" className="w-full h-full object-contain p-0.5" onError={e=>e.target.style.display='none'}/>
+                      : <Package className="w-3.5 h-3.5 text-gray-300"/>}
+                  </div>
+                </div>
+                {/* Nombre */}
+                <div className="col-span-5 min-w-0">
+                  <p className="text-xs font-medium text-gray-900 truncate">{prod.nombre}</p>
+                  <p className="text-xs text-gray-400 font-mono">#{prod.codigo}</p>
+                </div>
+                {/* Precio */}
+                <div className="col-span-2">
+                  <p className="text-xs font-semibold text-gray-700">
+                    {precio > 0 ? `$${formatPrice(precio)}` : '—'}
+                  </p>
+                  {prod.descuento > 0 && precio > 0 && (
+                    <p className="text-xs text-[#C8102E] font-bold">
+                      → ${formatPrice(precio * (1 - prod.descuento / 100))}
+                    </p>
+                  )}
+                </div>
+                {/* Descuento editable */}
+                <div className="col-span-3">
+                  <div className="relative">
+                    <input
+                      type="number" min="0" max="100"
+                      value={prod.descuento}
+                      onChange={e => updateDescuento(idx, e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg pl-2 pr-6 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E] bg-white"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">%</span>
+                  </div>
+                </div>
+                {/* Eliminar */}
+                <div className="col-span-1 flex justify-center">
+                  <button onClick={() => removeProducto(idx)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <Trash2 className="w-4 h-4"/>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );
