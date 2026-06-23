@@ -27,7 +27,13 @@ function setNewPass(p) { localStorage.setItem(ADMIN_PASS_KEY, encodePass(p)); }
 const EMPTY_PRODUCT = { codigo:'', nombre:'', marca:'', categoria:'dermocosmetica', precio:'', precio_oferta:'', descripcion:'', stock:'Disponible', destacado:'NO', imagen_url:'' };
 const EMPTY_PROMO   = { tarjeta:'', tipo:'', descuento:0, cuotas:0, detalle:'', dia:'', vigencia:'', activa:'SI', imagen_url:'' };
 const EMPTY_BANNER  = { titulo:'', subtitulo:'', color:'#C8102E', boton:'', link:'productos', activo:'SI', imagen_url:'', tipo:'principal' };
-const LINK_OPTIONS  = [{ value:'productos',label:'Productos' },{ value:'ofertas',label:'Ofertas' },{ value:'promos',label:'Promos Bancarias' },{ value:'inicio',label:'Inicio' }];
+const LINK_OPTIONS  = [
+  { value:'productos', label:'Productos' },
+  { value:'ofertas',   label:'Ofertas' },
+  { value:'promos',    label:'Promos y Programas de Laboratorio' },
+  { value:'inicio',    label:'Inicio' },
+  { value:'wishlist',  label:'Favoritos' },
+];
 
 const Label = ({ children }) => <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{children}</label>;
 const Field = ({ label, children, col2 }) => <div className={col2?'md:col-span-2':''}>{label&&<Label>{label}</Label>}{children}</div>;
@@ -224,20 +230,64 @@ function PedidosTab({ orders, statusFilter, setStatusFilter, updateStatus, allOr
 function OrderCard({ order, onStatusChange }) {
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus]     = useState(order.estado||'nuevo');
-  const handleStatus = (e)=>{ const s=e.target.value; setStatus(s); onStatusChange(order,s); };
-  const statusStyles = { nuevo:'bg-blue-50 text-blue-700 border-blue-200', 'en-proceso':'bg-amber-50 text-amber-700 border-amber-200', completado:'bg-green-50 text-green-700 border-green-200', cancelado:'bg-red-50 text-red-600 border-red-200' };
+  const [saving, setSaving]     = useState(false);
+  const [saved, setSaved]       = useState(false);
+
+  // Sincronizar estado local cuando Firestore actualiza el pedido
+  // PERO solo si no hay un guardado pendiente (evita que se pise el cambio local)
+  useEffect(() => {
+    if (!saving) {
+      setStatus(order.estado || 'nuevo');
+    }
+  }, [order.estado]);
+
+  const handleStatus = async (e) => {
+    const s = e.target.value;
+    setStatus(s);
+    setSaving(true);
+    setSaved(false);
+    try {
+      await onStatusChange(order, s);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const statusStyles = {
+    nuevo:        'bg-blue-50 text-blue-700 border-blue-200',
+    'en-proceso': 'bg-amber-50 text-amber-700 border-amber-200',
+    completado:   'bg-green-50 text-green-700 border-green-200',
+    cancelado:    'bg-red-50 text-red-600 border-red-200',
+  };
+
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className={`bg-white rounded-xl border overflow-hidden transition-all ${
+      status === 'completado' ? 'border-green-200 opacity-75' :
+      status === 'cancelado'  ? 'border-red-200 opacity-60'  :
+      'border-gray-200'
+    }`}>
       <div className="flex items-center justify-between px-5 py-4 gap-4">
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-gray-900 text-sm">{order.cliente}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{order.id} · {new Date(order.fecha).toLocaleString('es-AR')} · {order.items?.length} ítem(s)</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {order.id} · {new Date(order.fecha).toLocaleString('es-AR')} · {order.items?.length} ítem(s)
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="font-bold text-gray-900">${formatPrice(order.total)}</span>
-          <select value={status} onChange={handleStatus} className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none ${statusStyles[status]||''}`}>
-            {Object.entries(ORDER_STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
-          </select>
+          <div className="flex items-center gap-1.5">
+            <select
+              value={status}
+              onChange={handleStatus}
+              disabled={saving}
+              className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none disabled:opacity-60 cursor-pointer ${statusStyles[status]||''}`}>
+              {Object.entries(ORDER_STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
+            </select>
+            {saving && <span className="text-xs text-gray-400">Guardando...</span>}
+            {saved  && <span className="text-xs text-green-600 font-semibold flex items-center gap-1"><CheckCircle className="w-3 h-3"/>Guardado</span>}
+          </div>
           <button onClick={()=>setExpanded(!expanded)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
             {expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}
           </button>
