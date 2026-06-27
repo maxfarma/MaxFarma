@@ -19,7 +19,7 @@ import {
   ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText,
   Droplets, Wind, Baby, Brush, Dumbbell, Zap, Home as HomeIcon,
   Smile, Ribbon, Users, ShoppingBag, MessageCircle, Pill, Activity,
-  AlertCircle, Building2
+  AlertCircle, Building2, Search
 } from 'lucide-react';
 
 const WA = '5493625298918';
@@ -39,6 +39,7 @@ export default function Home() {
         {state.currentSection === 'productos' && <Productos key={state.searchQuery + '|' + state.currentCategory} />}
         {state.currentSection === 'ofertas'   && <Ofertas />}
         {state.currentSection === 'promos'    && <Promos />}
+        {state.currentSection === 'chimola'   && <Chimola />}
         {state.currentSection === 'wishlist'  && <Wishlist />}
         {state.currentSection === 'checkout'  && <Checkout />}
         {state.currentSection === 'programa'  && <ProgramaDescuento />}
@@ -171,8 +172,251 @@ function Inicio() {
         </div>
       </div>
 
+      {/* ── Banner CHIMOLA ── */}
+      <ChimolaBanner />
+
       {/* ── Newsletter ── */}
       <Newsletter />
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   BANNER CHIMOLA — en la home, lleva al catálogo
+════════════════════════════════════════════════════ */
+function ChimolaBanner() {
+  const { dispatch } = useStore();
+  return (
+    <div className="max-w-7xl mx-auto px-4 mt-10">
+      <button
+        onClick={() => dispatch({ type:'SET_SECTION', payload:'chimola' })}
+        className="w-full text-left group"
+      >
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-xl">
+          {/* Textura diagonal */}
+          <div className="absolute inset-0 opacity-10 pointer-events-none"
+            style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
+          {/* Círculo decorativo */}
+          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-yellow-500/20 pointer-events-none" />
+          <div className="absolute -left-6 -bottom-6 w-32 h-32 rounded-full bg-amber-600/30 pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-stretch gap-0">
+            {/* Lado izquierdo — texto */}
+            <div className="flex-1 px-7 py-8 sm:py-10">
+              <span className="inline-block text-amber-300 text-[11px] font-black uppercase tracking-[0.18em] mb-3 border border-amber-400/40 rounded-full px-3 py-1">
+                Moda & Accesorios
+              </span>
+              <h2 className="text-white text-3xl sm:text-4xl font-black leading-tight mb-3 tracking-tight">
+                Trabajamos con<br />
+                <span className="text-amber-300">CHIMOLA</span>
+              </h2>
+              <p className="text-amber-100/80 text-sm sm:text-base leading-relaxed mb-6 max-w-md">
+                Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-6">
+                {['Carteras','Billeteras','Mochilas','Bolsos','Accesorios'].map(t => (
+                  <span key={t} className="text-xs font-semibold text-amber-200 bg-white/10 border border-white/15 px-3 py-1 rounded-full">
+                    {t}
+                  </span>
+                ))}
+              </div>
+              <span className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold text-sm px-6 py-3 rounded-xl shadow-lg group-hover:bg-amber-50 transition-colors">
+                Ver catálogo CHIMOLA
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </span>
+            </div>
+
+            {/* Lado derecho — solo desktop */}
+            <div className="hidden sm:flex flex-col justify-center items-center gap-3 px-8 border-l border-white/10">
+              <div className="w-28 h-28 rounded-2xl bg-white/10 border-2 border-white/20 flex flex-col items-center justify-center shadow-xl">
+                <span className="text-white font-black text-2xl tracking-tighter leading-none text-center">
+                  CHI<br/>MOLA
+                </span>
+              </div>
+              <span className="text-amber-300 text-xs font-bold uppercase tracking-widest mt-1">Marca exclusiva</span>
+              <div className="flex items-center gap-1.5 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
+                <MessageCircle className="w-3.5 h-3.5" />
+                Precio mayorista
+              </div>
+            </div>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   SECCIÓN CHIMOLA — catálogo completo
+════════════════════════════════════════════════════ */
+const CHIMOLA_SUBCATS = [
+  { key:'todos',      label:'Todo CHIMOLA'  },
+  { key:'carteras',   label:'Carteras'      },
+  { key:'billeteras', label:'Billeteras'    },
+  { key:'mochilas',   label:'Mochilas'      },
+  { key:'bolsos',     label:'Bolsos'        },
+  { key:'accesorios', label:'Accesorios'    },
+];
+
+function Chimola() {
+  const { state, dispatch } = useStore();
+  const [subcat, setSubcat] = useState('todos');
+  const [query,  setQuery]  = useState('');
+
+  const chimola = useMemo(() => {
+    let list = state.products.filter(
+      p => (p.marca || '').toLowerCase() === 'chimola'
+    );
+    if (subcat !== 'todos') {
+      list = list.filter(p =>
+        (p.categoria    || '').toLowerCase() === subcat ||
+        (p.subcategoria || '').toLowerCase() === subcat ||
+        (p.nombre       || '').toLowerCase().includes(subcat)
+      );
+    }
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      list = list.filter(p =>
+        (p.nombre      || '').toLowerCase().includes(q) ||
+        (p.descripcion || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [state.products, subcat, query]);
+
+  const waMsg = encodeURIComponent('¡Hola! Quiero consultar precios mayoristas de productos CHIMOLA.');
+
+  return (
+    <div className="pb-20">
+      {/* Hero */}
+      <div className="relative bg-gradient-to-br from-amber-900 via-amber-800 to-amber-700 overflow-hidden">
+        <div className="absolute inset-0 opacity-10 pointer-events-none"
+          style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 12px)' }} />
+        <div className="relative max-w-5xl mx-auto px-4 py-10 sm:py-14 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+          <div className="w-20 h-20 flex-shrink-0 bg-white/10 border-2 border-white/30 rounded-2xl flex items-center justify-center shadow-xl">
+            <span className="text-white font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
+          </div>
+          <div className="text-center sm:text-left">
+            <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-1">Catálogo</p>
+            <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight mb-2">CHIMOLA</h1>
+            <p className="text-amber-100/80 text-sm max-w-md mb-4">
+              Carteras, billeteras, mochilas y accesorios de moda con calidad y estilo.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+              <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg transition-colors">
+                <MessageCircle className="w-4 h-4" /> Consultar precio mayorista
+              </a>
+              <button onClick={() => dispatch({ type:'SET_SECTION', payload:'inicio' })}
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors">
+                <ArrowLeft className="w-4 h-4" /> Volver al inicio
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Aviso mayorista */}
+      <div className="bg-amber-50 border-b border-amber-200">
+        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3 flex-wrap">
+          <span className="text-amber-700 font-bold text-xs uppercase tracking-wide">💼 Venta mayorista disponible</span>
+          <span className="text-amber-600 text-xs">Consultá precios especiales por mayor por WhatsApp.</span>
+          <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
+            className="ml-auto text-xs font-bold text-green-600 hover:underline flex items-center gap-1">
+            Consultar <ChevronRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-2.5">
+            {CHIMOLA_SUBCATS.map(s => (
+              <button key={s.key} onClick={() => setSubcat(s.key)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                  subcat === s.key
+                    ? 'bg-amber-800 text-white border-amber-800 shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400 hover:text-amber-800'
+                }`}>
+                {s.label}
+              </button>
+            ))}
+            <div className="relative ml-auto flex-shrink-0">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input type="text" placeholder="Buscar..." value={query} onChange={e => setQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-amber-400 w-32 sm:w-44" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Catálogo */}
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        {chimola.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-5">
+              <ShoppingBag className="w-9 h-9 text-amber-400" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-700 mb-2">
+              {query ? `Sin resultados para "${query}"` : 'Próximamente el catálogo CHIMOLA'}
+            </h3>
+            <p className="text-sm text-gray-400 max-w-xs mb-6">
+              Estamos cargando los productos. Mientras tanto consultá disponibilidad y precios por WhatsApp.
+            </p>
+            <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition-colors">
+              <MessageCircle className="w-4 h-4" /> Consultar por WhatsApp
+            </a>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm font-semibold text-gray-400 mb-5">
+              {chimola.length} producto{chimola.length !== 1 ? 's' : ''}
+              {subcat !== 'todos' ? ` en ${CHIMOLA_SUBCATS.find(s=>s.key===subcat)?.label}` : ''}
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {chimola.map(p => (
+                <ChimolaCard key={p.codigo} product={p} waMsg={waMsg} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChimolaCard({ product, waMsg }) {
+  const { dispatch } = useStore();
+  return (
+    <div onClick={() => dispatch({ type:'OPEN_PRODUCT_MODAL', payload:product })}
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden group">
+      <div className="relative aspect-square bg-amber-50 overflow-hidden">
+        {product.imagen_url ? (
+          <img src={product.imagen_url} alt={product.nombre}
+            className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+            <ShoppingBag className="w-10 h-10 text-amber-300" />
+            <span className="text-[10px] text-amber-400 font-semibold">CHIMOLA</span>
+          </div>
+        )}
+      </div>
+      <div className="p-3">
+        <p className="text-[10px] text-amber-700 font-bold uppercase tracking-widest mb-0.5">CHIMOLA</p>
+        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug mb-3">{product.nombre}</h3>
+        {product.precio && parseFloat(product.precio) > 0 ? (
+          <p className="text-base font-bold text-gray-900 mb-2">${formatPrice(parseFloat(product.precio))}</p>
+        ) : (
+          <p className="text-xs font-semibold text-amber-700 mb-2">Consultá el precio</p>
+        )}
+        <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          className="w-full flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-xl transition-colors">
+          <MessageCircle className="w-3.5 h-3.5" /> Consultar precio mayor
+        </a>
+      </div>
     </div>
   );
 }

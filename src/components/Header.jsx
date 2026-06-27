@@ -248,13 +248,17 @@ export default function Header() {
                 {l}
               </button>
             ))}
-            {/* CHIMOLA — link a ruta dedicada */}
-            <a
-              href="/chimola"
-              className="px-3 py-2 rounded-lg text-sm font-bold transition-colors text-amber-800 hover:bg-amber-50 border border-amber-200 hover:border-amber-400 ml-1"
+            {/* CHIMOLA — sección dentro del sitio */}
+            <button
+              onClick={() => navTo('chimola')}
+              className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors border ml-1 ${
+                state.currentSection === 'chimola'
+                  ? 'bg-amber-800 text-white border-amber-800'
+                  : 'text-amber-800 border-amber-200 hover:bg-amber-50 hover:border-amber-400'
+              }`}
             >
               CHIMOLA
-            </a>
+            </button>
           </nav>
 
           {/* ── Actions ── */}
@@ -310,13 +314,13 @@ export default function Header() {
                 </button>
               ))}
               {/* CHIMOLA */}
-              <a
-                href="/chimola"
+              <button
+                onClick={() => navTo('chimola')}
                 className="text-left px-3 py-2.5 rounded-lg text-sm font-bold text-amber-800 hover:bg-amber-50 border border-amber-200 flex items-center gap-2"
               >
                 <ShoppingBag className="w-4 h-4 text-amber-600" />
                 CHIMOLA — Carteras & Accesorios
-              </a>
+              </button>
             </div>
             <div className="border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 mb-2">Categorías</p>
