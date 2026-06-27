@@ -222,7 +222,7 @@ function ChimolaBanner() {
             </div>
             <div className="hidden sm:flex flex-col justify-center items-center gap-3 px-8 border-l border-white/10">
               <div className="w-28 h-28 rounded-2xl bg-white border-2 border-white/30 flex items-center justify-center shadow-xl overflow-hidden p-2">
-                <img src="https://res.cloudinary.com/dximjpxq7/image/upload/chimola_logo" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
+                <img src="https://scontent-eze1-2.xx.fbcdn.net/v/t39.30808-6/348444665_3041693429459883_3109437929373028317_n.jpg?stp=dst-jpg_tt6&cstp=mx1952x1952&ctp=s1952x1952&_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=WfGNpFxIUrYQ7kNvwE5gWuV&_nc_oc=Adr09mHhValgADM3-GeKkwWEN7Eud2XnsOwfbeko99YFhLb_iVmBkjnxR_l_v4nuSU8&_nc_zt=23&_nc_ht=scontent-eze1-2.xx&_nc_gid=f0wQNR7B_1E8jJFDbUv0LQ&_nc_ss=7b289&oh=00_Af-grpoPMsnZcxSPw5UAI6TvoALQmiaVbXLfPW3V5D7LQg&oe=6A45E657" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
                 <span style={{display:'none'}} className="text-amber-900 font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
               </div>
               <span className="text-amber-300 text-xs font-bold uppercase tracking-widest mt-1">Marca exclusiva</span>
