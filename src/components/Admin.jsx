@@ -5,6 +5,7 @@ import { db } from '@/lib/firebase';
 import { collection, onSnapshot, query as firestoreQuery, orderBy, doc as firestoreDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import ImageField from '@/components/ImageField';
+import { uploadToCloudinary } from '@/lib/cloudinary';
 import {
   X, Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp,
   Save, ArrowLeft, Eye, EyeOff, Lock, Package, CreditCard,
@@ -503,9 +504,28 @@ function ProductosTab() {
     return '¿Eliminar este producto?';
   };
 
-  const [xlsxMode, setXlsxMode] = useState('add'); // 'add' | 'replace'
-  const [xlsxModalData, setXlsxModalData] = useState(null); // productos leídos del Excel
+  const [xlsxMode, setXlsxMode] = useState('add');
+  const [xlsxModalData, setXlsxModalData] = useState(null);
+  const [imgZipRef] = useState(() => ({ current: null }));
+  const [zipProgress, setZipProgress] = useState(null); // null | { total, done, errors }
 
+  /* ── Descargar plantilla Excel ── */
+  const downloadTemplate = () => {
+    const headers = [
+      ['nombre','precio','precio_oferta','caracteristica','marca','codigo_barra','categoria','subcategoria','stock','imagen_url']
+    ];
+    const ejemplo = [
+      ['Cartera CHIMOLA Modelo A', 15000, 12000, 'Material cuero sintético, cierre dorado, 30x20cm', 'CHIMOLA', '7790001234567', 'accesorios', 'carteras', 'Disponible', '']
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...ejemplo]);
+    // Ancho de columnas
+    ws['!cols'] = [30,12,14,40,15,18,15,14,12,40].map(w=>({wch:w}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Productos');
+    XLSX.writeFile(wb, 'plantilla_productos_maxfarma.xlsx');
+  };
+
+  /* ── Leer XLSX ── */
   const handleXlsx = (e) => {
     const file = e.target.files?.[0]; if(!file) return;
     const reader = new FileReader();
@@ -514,20 +534,23 @@ function ProductosTab() {
         const wb = XLSX.read(ev.target.result,{type:'array'});
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws,{defval:''});
+        const get = (r, ...keys) => { for(const k of keys){ const v = r[k]||r[k.toLowerCase()]||r[k.toUpperCase()]||r[k.charAt(0).toUpperCase()+k.slice(1)]; if(v!==undefined && v!=='') return v; } return ''; };
         const products = rows.map((r,i)=>({
-          codigo:    String(r.codigo||r.Codigo||r.CODIGO||('PRD-'+Date.now()+i)),
-          nombre:    String(r.nombre||r.Nombre||r.NOMBRE||''),
-          marca:     String(r.marca||r.Marca||r.MARCA||''),
-          categoria: String(r.categoria||r.Categoria||r.CATEGORIA||'dermocosmetica'),
-          precio:    Number(r.precio||r.Precio||r.PRECIO||0),
-          precio_oferta: r.precio_oferta||r.PrecioOferta||'',
-          descripcion: String(r.descripcion||r.Descripcion||'').slice(0,300),
-          stock:     String(r.stock||r.Stock||'Disponible'),
-          destacado: String(r.destacado||r.Destacado||'NO').toUpperCase(),
-          imagen_url: String(r.imagen_url||r.ImagenUrl||r.imagen||''),
+          codigo:         String(get(r,'codigo_barra','codigo','ean','barcode') || ('PRD-'+Date.now()+i)),
+          codigo_barra:   String(get(r,'codigo_barra','barcode','ean','codigo') || ''),
+          nombre:         String(get(r,'nombre','name','producto') || ''),
+          marca:          String(get(r,'marca','brand') || ''),
+          categoria:      String(get(r,'categoria','category') || 'dermocosmetica'),
+          subcategoria:   String(get(r,'subcategoria','subcategory') || ''),
+          precio:         Number(get(r,'precio','price') || 0),
+          precio_oferta:  String(get(r,'precio_oferta','precio oferta','oferta') || ''),
+          caracteristica: String(get(r,'caracteristica','caracteristicas','descripcion','description') || '').slice(0,500),
+          descripcion:    String(get(r,'descripcion','description','caracteristica','caracteristicas') || '').slice(0,500),
+          stock:          String(get(r,'stock') || 'Disponible'),
+          destacado:      String(get(r,'destacado') || 'NO').toUpperCase(),
+          imagen_url:     String(get(r,'imagen_url','imagen','image','foto') || ''),
         })).filter(p=>p.nombre);
-        if(products.length===0){alert('No se encontraron productos en el archivo.');return;}
-        // Mostrar modal de confirmación con opciones
+        if(products.length===0){alert('No se encontraron productos. Verificá que el archivo tenga la columna "nombre".');return;}
         setXlsxModalData(products);
         setXlsxMode('add');
       } catch(err){alert('Error al leer XLSX: '+err.message);}
@@ -536,14 +559,63 @@ function ProductosTab() {
     e.target.value='';
   };
 
+  /* ── Subir ZIP de imágenes ── */
+  const handleImgZip = async (e) => {
+    const file = e.target.files?.[0]; if(!file) return;
+    e.target.value='';
+    try {
+      // Cargar JSZip dinámicamente
+      const JSZip = (await import('jszip')).default;
+      const zip = await JSZip.loadAsync(file);
+      const imageFiles = Object.entries(zip.files).filter(([name, f]) =>
+        !f.dir && /\.(jpe?g|png|webp|gif)$/i.test(name)
+      );
+      if(imageFiles.length === 0){ alert('No se encontraron imágenes en el ZIP (.jpg, .png, .webp).'); return; }
+
+      setZipProgress({ total: imageFiles.length, done: 0, errors: 0, log: [] });
+
+      const urlMap = {}; // nombre_archivo (sin ext) → URL cloudinary
+      let done = 0, errors = 0;
+
+      for(const [name, zipEntry] of imageFiles) {
+        const baseName = name.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase().trim();
+        try {
+          const blob = await zipEntry.async('blob');
+          const ext  = name.split('.').pop();
+          const imgFile = new File([blob], `${baseName}.${ext}`, { type: `image/${ext === 'jpg' ? 'jpeg' : ext}` });
+          const url = await uploadToCloudinary(imgFile);
+          urlMap[baseName] = url;
+          done++;
+        } catch(err) {
+          errors++;
+        }
+        setZipProgress(p => ({ ...p, done: done, errors, log: [...(p?.log||[]), name] }));
+      }
+
+      // Vincular URLs a los productos por código de barra o nombre
+      const updated = state.products.map(p => {
+        const codigoKey = (p.codigo_barra||p.codigo||'').toLowerCase().trim();
+        const nombreKey = (p.nombre||'').toLowerCase().trim().slice(0,30);
+        const url = urlMap[codigoKey] || urlMap[nombreKey];
+        return url ? { ...p, imagen_url: url } : p;
+      });
+
+      dispatch({ type:'SET_PRODUCTS', payload: updated });
+      saveConfig('products', updated);
+      setTimeout(() => setZipProgress(null), 4000);
+      alert(`✓ ${done} imagen(es) subidas y vinculadas. ${errors > 0 ? `${errors} error(es).` : ''}\n\nNombré las imágenes con el código de barra o el nombre del producto para que se vinculen automáticamente.`);
+    } catch(err) {
+      setZipProgress(null);
+      alert('Error al leer el ZIP: ' + err.message);
+    }
+  };
+
   const confirmXlsxImport = () => {
     if (!xlsxModalData) return;
     let updated;
     if (xlsxMode === 'replace') {
-      // Reemplazar todo
       updated = xlsxModalData;
     } else {
-      // Agregar al catálogo existente — si el código ya existe, actualizar; si no, agregar
       const existing = new Map(state.products.map(p => [p.codigo, p]));
       xlsxModalData.forEach(p => existing.set(p.codigo, p));
       updated = Array.from(existing.values());
@@ -572,10 +644,31 @@ function ProductosTab() {
         <button onClick={()=>setEditingProduct({...EMPTY_PRODUCT,_isNew:true})} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
           <Plus className="w-4 h-4"/> Nuevo
         </button>
-        <button onClick={()=>fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
-          <Upload className="w-4 h-4"/> Importar XLSX
-        </button>
+
+        {/* Grupo importar */}
+        <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+          <button onClick={downloadTemplate}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 rounded-md transition-colors"
+            title="Descargar plantilla Excel con las columnas correctas">
+            <Download className="w-3.5 h-3.5"/> Plantilla
+          </button>
+          <div className="w-px h-5 bg-gray-200"/>
+          <button onClick={()=>fileRef.current?.click()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
+            title="Importar productos desde Excel">
+            <Upload className="w-3.5 h-3.5"/> Importar XLSX
+          </button>
+          <div className="w-px h-5 bg-gray-200"/>
+          <button onClick={()=>imgZipRef.current?.click()}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-50 rounded-md transition-colors"
+            title="Subir un ZIP con imágenes — se vinculan por código de barra o nombre">
+            <Image className="w-3.5 h-3.5"/> Subir imágenes ZIP
+          </button>
+        </div>
+
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleXlsx}/>
+        <input ref={r => imgZipRef.current = r} type="file" accept=".zip" className="hidden" onChange={handleImgZip}/>
+
         {/* Eliminar todos */}
         {state.products.length > 0 && (
           <button onClick={()=>setConfirmDelete('all')}
@@ -584,6 +677,22 @@ function ProductosTab() {
           </button>
         )}
       </div>
+
+      {/* ── Progreso ZIP ── */}
+      {zipProgress && (
+        <div className="mb-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-3">
+          <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin flex-shrink-0"/>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-purple-800">
+              Subiendo imágenes… {zipProgress.done}/{zipProgress.total}
+              {zipProgress.errors > 0 && <span className="text-red-500 ml-2">({zipProgress.errors} errores)</span>}
+            </p>
+            <div className="mt-1.5 h-1.5 bg-purple-100 rounded-full overflow-hidden">
+              <div className="h-full bg-purple-500 rounded-full transition-all" style={{width:`${(zipProgress.done/zipProgress.total)*100}%`}}/>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Barra de acciones cuando hay selección ── */}
       {someSelected && (
@@ -686,70 +795,65 @@ function ProductosTab() {
       {/* Modal de importación XLSX */}
       {xlsxModalData && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={() => setXlsxModalData(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-gray-900 text-lg mb-1">Importar productos</h3>
-            <p className="text-sm text-gray-500 mb-5">
-              Se encontraron <strong>{xlsxModalData.length} productos</strong> en el archivo. 
+            <p className="text-sm text-gray-500 mb-4">
+              Se encontraron <strong>{xlsxModalData.length} productos</strong> en el archivo.
               Actualmente tenés <strong>{state.products.length} productos</strong> en el catálogo.
             </p>
 
+            {/* Preview primeros 3 productos */}
+            <div className="mb-4 rounded-xl border border-gray-100 overflow-hidden">
+              <div className="bg-gray-50 px-3 py-2 border-b border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vista previa (primeros {Math.min(3, xlsxModalData.length)})</p>
+              </div>
+              {xlsxModalData.slice(0,3).map((p,i) => (
+                <div key={i} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{p.nombre}</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    {p.marca && <span className="text-xs text-gray-400">Marca: <b>{p.marca}</b></span>}
+                    {p.precio > 0 && <span className="text-xs text-gray-400">Precio: <b>${p.precio.toLocaleString('es-AR')}</b></span>}
+                    {p.precio_oferta && <span className="text-xs text-green-600">Oferta: <b>${parseFloat(p.precio_oferta).toLocaleString('es-AR')}</b></span>}
+                    {p.codigo_barra && <span className="text-xs text-gray-400">Cód: <b>{p.codigo_barra}</b></span>}
+                    {p.subcategoria && <span className="text-xs text-amber-600">Sub: <b>{p.subcategoria}</b></span>}
+                  </div>
+                  {p.caracteristica && <p className="text-xs text-gray-400 mt-0.5 truncate">{p.caracteristica}</p>}
+                </div>
+              ))}
+            </div>
+
             {/* Opciones */}
-            <div className="flex flex-col gap-3 mb-6">
-              <button
-                onClick={() => setXlsxMode('add')}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                  xlsxMode === 'add'
-                    ? 'border-[#C8102E] bg-[#FFF0F3]'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  xlsxMode === 'add' ? 'border-[#C8102E]' : 'border-gray-300'
-                }`}>
-                  {xlsxMode === 'add' && <div className="w-2.5 h-2.5 rounded-full bg-[#C8102E]" />}
+            <div className="flex flex-col gap-3 mb-5">
+              <button onClick={() => setXlsxMode('add')}
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${xlsxMode==='add'?'border-[#C8102E] bg-[#FFF0F3]':'border-gray-200 hover:border-gray-300'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='add'?'border-[#C8102E]':'border-gray-300'}`}>
+                  {xlsxMode==='add'&&<div className="w-2.5 h-2.5 rounded-full bg-[#C8102E]"/>}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Agregar al catálogo existente</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Los productos nuevos se suman. Si un código ya existe, se actualiza. 
-                    Total final: ~{state.products.length + xlsxModalData.length} productos.
-                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Los productos nuevos se suman. Si el código ya existe, se actualiza.</p>
                 </div>
               </button>
-
-              <button
-                onClick={() => setXlsxMode('replace')}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                  xlsxMode === 'replace'
-                    ? 'border-red-500 bg-red-50'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                  xlsxMode === 'replace' ? 'border-red-500' : 'border-gray-300'
-                }`}>
-                  {xlsxMode === 'replace' && <div className="w-2.5 h-2.5 rounded-full bg-red-500" />}
+              <button onClick={() => setXlsxMode('replace')}
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${xlsxMode==='replace'?'border-red-500 bg-red-50':'border-gray-200 hover:border-gray-300'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='replace'?'border-red-500':'border-gray-300'}`}>
+                  {xlsxMode==='replace'&&<div className="w-2.5 h-2.5 rounded-full bg-red-500"/>}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Reemplazar todo el catálogo</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    ⚠ Borra los {state.products.length} productos actuales y los reemplaza 
-                    con los {xlsxModalData.length} del archivo.
-                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">⚠ Borra los {state.products.length} productos actuales y los reemplaza con los {xlsxModalData.length} del archivo.</p>
                 </div>
               </button>
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={() => setXlsxModalData(null)}
+              <button onClick={() => setXlsxModalData(null)}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
                 Cancelar
               </button>
-              <button
-                onClick={confirmXlsxImport}
-                className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl transition-colors ${
-                  xlsxMode === 'replace' ? 'bg-red-600 hover:bg-red-700' : 'bg-[#C8102E] hover:bg-[#9B0D22]'
-                }`}>
-                {xlsxMode === 'replace' ? 'Reemplazar catálogo' : 'Agregar productos'}
+              <button onClick={confirmXlsxImport}
+                className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl transition-colors ${xlsxMode==='replace'?'bg-red-600 hover:bg-red-700':'bg-[#C8102E] hover:bg-[#9B0D22]'}`}>
+                {xlsxMode==='replace'?'Reemplazar catálogo':'Agregar productos'}
               </button>
             </div>
           </div>
@@ -797,10 +901,9 @@ function ProductForm({ product, onSave, onCancel }) {
             <option value="NO">No destacar</option><option value="SI">Destacado</option>
           </select>
         </Field>
-        <Field label="Código EAN"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/></Field>
-        <div className="md:col-span-2">
-          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-16 h-16"/>
-        </div>
+        <Field label="Código de barra"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo_barra||''} onChange={e=>set('codigo_barra',e.target.value)} placeholder="7790001234567"/></Field>
+        <Field label="Código interno (EAN)"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/></Field>
+        <Field label="Características" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.caracteristica||''} onChange={e=>set('caracteristica',e.target.value)} placeholder="Material, medidas, colores disponibles..."/></Field>
         <Field label="Descripción" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.descripcion} onChange={e=>set('descripcion',e.target.value)}/></Field>
       </div>
       <div className="flex gap-3 mt-5">
