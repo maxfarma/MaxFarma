@@ -125,63 +125,157 @@ export default function Admin() {
     );
   }
 
-  const TABS = [
-    { key:'pedidos',   label:'Pedidos',         icon:<ShoppingBag className="w-4 h-4"/>, badge:nuevos||null },
-    { key:'productos', label:'Productos',        icon:<Package className="w-4 h-4"/> },
-    { key:'promos',    label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
-    { key:'banners',   label:'Banners',          icon:<Image className="w-4 h-4"/> },
-    { key:'paginas',   label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
-    { key:'suscriptores', label:'Suscriptores',    icon:<Users className="w-4 h-4"/> },
-    { key:'categorias', label:'Categorías',        icon:<LayoutDashboard className="w-4 h-4"/> },
-    { key:'programas', label:'Programas',         icon:<Tag className="w-4 h-4"/> },
-    { key:'config',    label:'Configuración',    icon:<Settings className="w-4 h-4"/> },
+  // Grupos del menú para organizar sin eliminar nada
+  const TAB_GROUPS = [
+    {
+      label: 'Ventas',
+      color: '#C8102E',
+      tabs: [
+        { key:'pedidos', label:'Pedidos', icon:<ShoppingBag className="w-4 h-4"/>, badge:nuevos||null },
+        { key:'suscriptores', label:'Suscriptores', icon:<Users className="w-4 h-4"/> },
+      ]
+    },
+    {
+      label: 'Catálogo',
+      color: '#2B6CB0',
+      tabs: [
+        { key:'productos',  label:'Productos',   icon:<Package className="w-4 h-4"/> },
+        { key:'categorias', label:'Categorías',  icon:<LayoutDashboard className="w-4 h-4"/> },
+        { key:'programas',  label:'Programas',   icon:<Tag className="w-4 h-4"/> },
+        { key:'chimola',    label:'CHIMOLA',     icon:<ShoppingBag className="w-4 h-4"/>, accent:'amber' },
+      ]
+    },
+    {
+      label: 'Contenido',
+      color: '#2F855A',
+      tabs: [
+        { key:'banners', label:'Banners',          icon:<Image className="w-4 h-4"/> },
+        { key:'promos',  label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
+        { key:'paginas', label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
+      ]
+    },
+    {
+      label: 'Sistema',
+      color: '#718096',
+      tabs: [
+        { key:'config', label:'Configuración', icon:<Settings className="w-4 h-4"/> },
+      ]
+    },
   ];
+
+  const allTabs = TAB_GROUPS.flatMap(g => g.tabs);
+  const activeGroup = TAB_GROUPS.find(g => g.tabs.some(t => t.key === tab));
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* ── Header del panel ── */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-[#C8102E] flex items-center justify-center">
-              <LayoutDashboard className="w-4 h-4 text-white"/>
+        <div className="max-w-7xl mx-auto px-4">
+          {/* Fila superior: logo + grupos + salir */}
+          <div className="h-12 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-[#C8102E] flex items-center justify-center">
+                <LayoutDashboard className="w-4 h-4 text-white"/>
+              </div>
+              <span className="font-bold text-gray-900 text-sm hidden sm:block">Panel MaxFarma</span>
             </div>
-            <span className="font-semibold text-gray-900 text-sm">Panel MaxFarma</span>
-            <span className="hidden sm:block text-gray-300">|</span>
-            <nav className="hidden sm:flex items-center gap-1">
-              {TABS.map(t => (
-                <button key={t.key} onClick={()=>setTab(t.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab===t.key?'bg-[#C8102E] text-white':'text-gray-600 hover:bg-gray-100'}`}>
-                  {t.icon} {t.label}
-                  {t.badge && <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${tab===t.key?'bg-white text-[#C8102E]':'bg-[#C8102E] text-white'}`}>{t.badge}</span>}
+
+            {/* Grupos — desktop */}
+            <nav className="hidden sm:flex items-center gap-1 flex-1 justify-center">
+              {TAB_GROUPS.map(g => {
+                const isGroupActive = g.tabs.some(t => t.key === tab);
+                return (
+                  <div key={g.label} className="relative group">
+                    <button
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        isGroupActive ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                      style={isGroupActive ? { background: g.color } : {}}
+                      onClick={() => setTab(g.tabs[0].key)}
+                    >
+                      {g.label}
+                      {g.tabs.some(t => t.badge) && (
+                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${isGroupActive ? 'bg-white text-[#C8102E]' : 'bg-[#C8102E] text-white'}`}>
+                          {g.tabs.find(t=>t.badge)?.badge}
+                        </span>
+                      )}
+                    </button>
+                    {/* Dropdown hover */}
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg p-1 min-w-[160px] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+                      {g.tabs.map(t => (
+                        <button key={t.key} onClick={() => setTab(t.key)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
+                            tab === t.key
+                              ? t.accent === 'amber' ? 'bg-amber-50 text-amber-800' : 'bg-[#FFF0F3] text-[#C8102E]'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}>
+                          <span className={t.accent === 'amber' ? 'text-amber-600' : ''}>{t.icon}</span>
+                          {t.label}
+                          {t.badge && <span className="ml-auto bg-[#C8102E] text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{t.badge}</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </nav>
+
+            <button onClick={()=>{ setUnlocked(false); dispatch({ type:'SET_SECTION', payload:'inicio' }); }}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 font-medium transition-colors flex-shrink-0">
+              <ArrowLeft className="w-3.5 h-3.5"/> Salir
+            </button>
+          </div>
+
+          {/* Fila secundaria: tabs del grupo activo */}
+          {activeGroup && (
+            <div className="flex gap-1 pb-0 overflow-x-auto scrollbar-none border-t border-gray-50 pt-1">
+              {activeGroup.tabs.map(t => (
+                <button key={t.key} onClick={() => setTab(t.key)}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap rounded-t-lg border-b-2 transition-colors ${
+                    tab === t.key
+                      ? t.accent === 'amber'
+                        ? 'border-amber-600 text-amber-800 bg-amber-50'
+                        : 'border-[#C8102E] text-[#C8102E]'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}>
+                  <span className={tab === t.key && t.accent === 'amber' ? 'text-amber-600' : ''}>{t.icon}</span>
+                  {t.label}
+                  {t.badge && <span className="bg-[#C8102E] text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{t.badge}</span>}
                 </button>
               ))}
-            </nav>
+            </div>
+          )}
+
+          {/* Mobile: scroll horizontal de todos los tabs */}
+          <div className="sm:hidden flex overflow-x-auto border-t border-gray-100 gap-0.5 px-0.5 py-1.5">
+            {allTabs.map(t => (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap rounded-lg border transition-colors flex-shrink-0 ${
+                  tab === t.key
+                    ? t.accent === 'amber'
+                      ? 'bg-amber-800 text-white border-amber-800'
+                      : 'bg-[#C8102E] text-white border-[#C8102E]'
+                    : 'border-gray-200 text-gray-600 bg-white'
+                }`}>
+                {t.icon} {t.label}
+                {t.badge && <span className={`text-xs font-bold px-1 rounded-full leading-none ${tab===t.key?'bg-white text-[#C8102E]':'bg-[#C8102E] text-white'}`}>{t.badge}</span>}
+              </button>
+            ))}
           </div>
-          <button onClick={()=>{ setUnlocked(false); dispatch({ type:'SET_SECTION', payload:'inicio' }); }} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 font-medium transition-colors">
-            <ArrowLeft className="w-3.5 h-3.5"/> Salir al sitio
-          </button>
-        </div>
-        <div className="sm:hidden flex overflow-x-auto border-t border-gray-100 px-2">
-          {TABS.map(t => (
-            <button key={t.key} onClick={()=>setTab(t.key)}
-              className={`flex items-center gap-1 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${tab===t.key?'border-[#C8102E] text-[#C8102E]':'border-transparent text-gray-500'}`}>
-              {t.icon} {t.label}
-              {t.badge && <span className="bg-[#C8102E] text-white text-xs rounded-full px-1 leading-none py-0.5">{t.badge}</span>}
-            </button>
-          ))}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {tab==='pedidos'   && <PedidosTab orders={filtered} statusFilter={statusFilter} setStatusFilter={setStatusFilter} updateStatus={updateStatus} allOrders={orders}/>}
-        {tab==='productos' && <ProductosTab/>}
-        {tab==='promos'    && <PromosTab/>}
-        {tab==='banners'   && <BannersTab/>}
-        {tab==='paginas'   && <PaginasTab/>}
+        {tab==='pedidos'      && <PedidosTab orders={filtered} statusFilter={statusFilter} setStatusFilter={setStatusFilter} updateStatus={updateStatus} allOrders={orders}/>}
+        {tab==='productos'    && <ProductosTab/>}
+        {tab==='promos'       && <PromosTab/>}
+        {tab==='banners'      && <BannersTab/>}
+        {tab==='paginas'      && <PaginasTab/>}
         {tab==='suscriptores' && <SuscriptoresTab/>}
-        {tab==='categorias' && <CategoriasTab/>}
-        {tab==='programas' && <ProgramasTab/>}
-        {tab==='config'    && <ConfigTab/>}
+        {tab==='categorias'   && <CategoriasTab/>}
+        {tab==='programas'    && <ProgramasTab/>}
+        {tab==='config'       && <ConfigTab/>}
+        {tab==='chimola'      && <ChimolaTab/>}
       </div>
     </div>
   );
@@ -679,6 +773,17 @@ function ProductForm({ product, onSave, onCancel }) {
           <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.categoria} onChange={e=>set('categoria',e.target.value)}>
             {Object.entries(CAT_LABELS).filter(([k])=>k!=='todos').map(([k,v])=><option key={k} value={k}>{v}</option>)}
           </select>
+        </Field>
+        <Field label="Subcategoría CHIMOLA">
+          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.subcategoria||''} onChange={e=>set('subcategoria',e.target.value)}>
+            <option value="">— Sin subcategoría —</option>
+            <option value="carteras">Carteras</option>
+            <option value="billeteras">Billeteras</option>
+            <option value="mochilas">Mochilas</option>
+            <option value="bolsos">Bolsos</option>
+            <option value="accesorios">Accesorios</option>
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">Solo para productos de la marca CHIMOLA</p>
         </Field>
         <Field label="Stock">
           <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.stock} onChange={e=>set('stock',e.target.value)}>
@@ -1939,6 +2044,330 @@ function ProductosSelectorPrograma({ form, set, state }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB: CHIMOLA — Banner + productos de la marca
+═══════════════════════════════════════════════════════════ */
+const CHIMOLA_SUBCATS_ADMIN = ['carteras','billeteras','mochilas','bolsos','accesorios'];
+
+function ChimolaTab() {
+  const { state, dispatch, saveConfig } = useStore();
+  const [section, setSection] = useState('banner'); // 'banner' | 'productos'
+  const [editingProduct, setEditingProduct] = useState(null);
+
+  // Productos de la marca CHIMOLA
+  const chimolaProducts = state.products.filter(
+    p => (p.marca || '').toLowerCase() === 'chimola'
+  );
+
+  // Guardar / editar producto CHIMOLA
+  const saveProduct = (form) => {
+    if (!form.nombre) { alert('El nombre es obligatorio.'); return; }
+    const clean = { ...form, marca: 'CHIMOLA' }; delete clean._isNew;
+    if (!clean.codigo) clean.codigo = 'CHI-' + Date.now();
+    const updated = form._isNew
+      ? [...state.products, clean]
+      : state.products.map(p => p.codigo === clean.codigo ? clean : p);
+    dispatch({ type:'SET_PRODUCTS', payload:updated });
+    saveConfig('products', updated);
+    setEditingProduct(null);
+  };
+
+  const deleteProduct = (codigo) => {
+    if (!confirm('¿Eliminar este producto CHIMOLA?')) return;
+    const updated = state.products.filter(p => p.codigo !== codigo);
+    dispatch({ type:'SET_PRODUCTS', payload:updated });
+    saveConfig('products', updated);
+  };
+
+  if (editingProduct) {
+    return <ChimolaProductForm product={editingProduct} onSave={saveProduct} onCancel={() => setEditingProduct(null)} />;
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-12 h-12 rounded-xl bg-amber-800 flex items-center justify-center flex-shrink-0 shadow">
+          <span className="text-white font-black text-xs leading-none text-center">CHI<br/>MOLA</span>
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Gestión CHIMOLA</h2>
+          <p className="text-xs text-gray-400">{chimolaProducts.length} productos cargados</p>
+        </div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-2 mb-6 border-b border-gray-200">
+        {[['banner','🎨 Banner principal'],['productos','📦 Productos']].map(([k,l]) => (
+          <button key={k} onClick={() => setSection(k)}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+              section === k ? 'border-amber-700 text-amber-800' : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {section === 'banner' && <ChimolaBannerConfig />}
+      {section === 'productos' && (
+        <ChimolaProductsConfig
+          products={chimolaProducts}
+          onEdit={p => setEditingProduct({ ...p })}
+          onDelete={deleteProduct}
+          onNew={() => setEditingProduct({ _isNew:true, codigo:'', nombre:'', marca:'CHIMOLA', subcategoria:'carteras', precio:'', precio_oferta:'', descripcion:'', imagen_url:'', stock:'Disponible', destacado:'NO', categoria:'accesorios' })}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChimolaBannerConfig() {
+  const { state, dispatch, saveConfig } = useStore();
+
+  // Leemos config de Chimola desde state.config (Firestore 'config' doc)
+  const saved = state.chimolaConfig || {};
+  const [form, setForm] = useState({
+    titulo:    saved.titulo    ?? 'Trabajamos con CHIMOLA',
+    subtitulo: saved.subtitulo ?? 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.',
+    imagen_url: saved.imagen_url ?? '',
+    cta:       saved.cta       ?? 'Ver catálogo CHIMOLA',
+    visible:   saved.visible   ?? 'SI',
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k,v) => setForm(f => ({...f,[k]:v}));
+
+  const save = async () => {
+    setSaving(true);
+    dispatch({ type:'SET_CHIMOLA_CONFIG', payload: form });
+    await saveConfig('chimolaConfig', form);
+    setSaving(false);
+    alert('Banner CHIMOLA guardado ✓');
+  };
+
+  return (
+    <div>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
+        <strong>¿Qué es este banner?</strong> Es el panel dorado grande que aparece en la página de inicio 
+        debajo del carrusel, que dice "Trabajamos con CHIMOLA". Podés cambiar el texto, agregar una imagen de fondo 
+        y personalizar el botón.
+      </div>
+
+      {/* Vista previa */}
+      <div className="relative overflow-hidden rounded-2xl mb-6 bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-lg min-h-[140px]">
+        {form.imagen_url && (
+          <>
+            <img src={form.imagen_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" onError={e=>e.target.style.display='none'}/>
+            <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />
+          </>
+        )}
+        <div className="absolute inset-0 opacity-10 pointer-events-none"
+          style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
+        <div className="relative z-10 px-8 py-8">
+          <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-2">Moda & Accesorios</p>
+          <h2 className="text-white text-2xl font-black mb-2">{form.titulo || 'Título'}</h2>
+          <p className="text-amber-100/80 text-sm mb-4 max-w-md">{form.subtitulo}</p>
+          <span className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold text-sm px-5 py-2.5 rounded-xl">
+            {form.cta} →
+          </span>
+        </div>
+        <span className="absolute bottom-2 right-3 text-white/30 text-xs">Vista previa</span>
+      </div>
+
+      {/* Formulario */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6 grid md:grid-cols-2 gap-4">
+        <Field label="Título principal" col2>
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Trabajamos con CHIMOLA"/>
+        </Field>
+        <Field label="Texto descriptivo" col2>
+          <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400" rows={2}
+            value={form.subtitulo} onChange={e=>set('subtitulo',e.target.value)}/>
+        </Field>
+        <div className="md:col-span-2">
+          <ImageField label="Imagen de fondo (opcional) — se sube a Cloudinary" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-24 h-16"/>
+        </div>
+        <Field label="Texto del botón">
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.cta} onChange={e=>set('cta',e.target.value)} placeholder="Ver catálogo CHIMOLA"/>
+        </Field>
+        <Field label="Estado del banner">
+          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.visible} onChange={e=>set('visible',e.target.value)}>
+            <option value="SI">Visible en el inicio</option>
+            <option value="NO">Oculto</option>
+          </select>
+        </Field>
+      </div>
+      <div className="flex gap-3 mt-4">
+        <button onClick={save} disabled={saving}
+          className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors disabled:opacity-60">
+          <Save className="w-4 h-4"/> {saving ? 'Guardando…' : 'Guardar banner'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ChimolaProductsConfig({ products, onEdit, onDelete, onNew }) {
+  const [filterSub, setFilterSub] = useState('todos');
+
+  const filtered = filterSub === 'todos'
+    ? products
+    : products.filter(p => (p.subcategoria||'').toLowerCase() === filterSub);
+
+  return (
+    <div>
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 text-sm text-blue-800">
+        <strong>¿Cómo agregar productos CHIMOLA?</strong> Hacé clic en "Nuevo producto CHIMOLA" y completá el formulario. 
+        El campo <strong>Subcategoría</strong> (carteras, billeteras, mochilas, etc.) hace que el producto aparezca 
+        en el filtro correspondiente dentro del catálogo CHIMOLA. La marca se establece automáticamente como CHIMOLA.
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="flex gap-1 overflow-x-auto">
+          {[['todos','Todos'],['carteras','Carteras'],['billeteras','Billeteras'],['mochilas','Mochilas'],['bolsos','Bolsos'],['accesorios','Accesorios']].map(([k,l]) => (
+            <button key={k} onClick={() => setFilterSub(k)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-colors ${
+                filterSub===k ? 'bg-amber-800 text-white border-amber-800' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400'
+              }`}>{l}</button>
+          ))}
+        </div>
+        <button onClick={onNew}
+          className="ml-auto flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors">
+          <Plus className="w-4 h-4"/> Nuevo producto CHIMOLA
+        </button>
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+          <ShoppingBag className="w-10 h-10 text-amber-200 mx-auto mb-3"/>
+          <p className="text-gray-400 text-sm">No hay productos{filterSub !== 'todos' ? ` en ${filterSub}` : ' CHIMOLA'}</p>
+          <button onClick={onNew} className="mt-4 text-sm font-semibold text-amber-800 hover:underline">
+            + Agregar el primero
+          </button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Producto</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Subcategoría</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.map(p => (
+                <tr key={p.codigo} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {p.imagen_url ? (
+                        <img src={p.imagen_url} alt="" className="w-10 h-10 object-contain rounded-lg bg-amber-50 border border-amber-100" onError={e=>e.target.style.display='none'}/>
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
+                          <ShoppingBag className="w-4 h-4 text-amber-300"/>
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-semibold text-gray-800 leading-tight">{p.nombre}</p>
+                        <p className="text-xs text-gray-400 font-mono">#{p.codigo}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full capitalize">
+                      {p.subcategoria || '—'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-gray-800">
+                      {p.precio && parseFloat(p.precio) > 0 ? `$${parseFloat(p.precio).toLocaleString('es-AR')}` : <span className="text-gray-400 text-xs">Consultar</span>}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1 justify-end">
+                      <button onClick={() => onEdit(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Pencil className="w-4 h-4"/></button>
+                      <button onClick={() => onDelete(p.codigo)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4"/></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
+            <p className="text-xs text-gray-400">{filtered.length} producto(s){filterSub !== 'todos' ? ` en ${filterSub}` : ' CHIMOLA en total'}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChimolaProductForm({ product, onSave, onCancel }) {
+  const [form, setForm] = useState({ ...product });
+  const set = (k,v) => setForm(f => ({...f,[k]:v}));
+  return (
+    <div>
+      <button onClick={onCancel} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors"><ArrowLeft className="w-4 h-4"/>Volver</button>
+      <h2 className="text-lg font-bold text-gray-900 mb-1">{form._isNew ? 'Nuevo producto CHIMOLA' : 'Editar producto CHIMOLA'}</h2>
+      <p className="text-xs text-amber-700 font-semibold mb-6 flex items-center gap-1.5">
+        <span className="w-4 h-4 bg-amber-800 rounded flex items-center justify-center text-white text-[9px] font-black">C</span>
+        La marca se establece automáticamente como CHIMOLA
+      </p>
+      <div className="grid md:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 p-6">
+        <Field label="Nombre *" col2>
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.nombre} onChange={e=>set('nombre',e.target.value)} placeholder="Cartera CHIMOLA modelo X"/>
+        </Field>
+        <Field label="Subcategoría *">
+          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.subcategoria||'carteras'} onChange={e=>set('subcategoria',e.target.value)}>
+            <option value="carteras">Carteras</option>
+            <option value="billeteras">Billeteras</option>
+            <option value="mochilas">Mochilas</option>
+            <option value="bolsos">Bolsos</option>
+            <option value="accesorios">Accesorios</option>
+          </select>
+        </Field>
+        <Field label="Precio (dejar en 0 para 'Consultar')">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
+            <input type="number" min="0" className="w-full border border-gray-200 rounded-lg pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              value={form.precio} onChange={e=>set('precio',e.target.value)}/>
+          </div>
+        </Field>
+        <Field label="Stock">
+          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.stock||'Disponible'} onChange={e=>set('stock',e.target.value)}>
+            <option value="Disponible">Disponible</option>
+            <option value="Sin stock">Sin stock</option>
+            <option value="Bajo stock">Bajo stock</option>
+            <option value="Por encargo">Por encargo</option>
+          </select>
+        </Field>
+        <div className="md:col-span-2">
+          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-20"/>
+        </div>
+        <Field label="Descripción" col2>
+          <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400" rows={2}
+            value={form.descripcion||''} onChange={e=>set('descripcion',e.target.value)} placeholder="Descripción del producto..."/>
+        </Field>
+        <Field label="Código interno">
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
+            value={form.codigo||''} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/>
+        </Field>
+      </div>
+      <div className="flex gap-3 mt-5">
+        <button onClick={onCancel} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
+        <button onClick={() => onSave(form)} className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors">
+          <Save className="w-4 h-4"/> Guardar producto
+        </button>
+      </div>
     </div>
   );
 }

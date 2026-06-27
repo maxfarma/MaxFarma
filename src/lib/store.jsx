@@ -126,6 +126,7 @@ function reducer(state, action) {
     case 'SET_PRODUCTS':        return { ...state, products: action.payload };
     case 'SET_PROMOS':          return { ...state, promos: action.payload };
     case 'SET_BANNERS':         return { ...state, banners: action.payload };
+    case 'SET_CHIMOLA_CONFIG':  return { ...state, chimolaConfig: action.payload };
     case 'SET_PAGINAS':         return { ...state, paginas: action.payload };
     case 'SET_ORDERS':          return { ...state, orders: action.payload };
     case 'SET_PROGRAMAS':       return { ...state, programas: action.payload };
@@ -280,6 +281,13 @@ export function StoreProvider({ children }) {
       }
     }, err => console.error('programas error:', err)));
 
+    /* ── CHIMOLA CONFIG ── */
+    unsubs.push(onSnapshot(doc(db, COL, 'chimolaConfig'), snap => {
+      if (snap.exists()) {
+        dispatch({ type:'SET_CHIMOLA_CONFIG', payload: snap.data() });
+      }
+    }, err => console.error('chimolaConfig error:', err)));
+
     return () => unsubs.forEach(u => u());
   }, []);
 
@@ -310,6 +318,9 @@ export function StoreProvider({ children }) {
           break;
         case 'categorias':
           await saveSimple('categorias', { items: data });
+          break;
+        case 'chimolaConfig':
+          await saveSimple('chimolaConfig', data);
           break;
       }
     } catch (e) {

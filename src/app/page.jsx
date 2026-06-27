@@ -185,58 +185,48 @@ function Inicio() {
    BANNER CHIMOLA — en la home, lleva al catálogo
 ════════════════════════════════════════════════════ */
 function ChimolaBanner() {
-  const { dispatch } = useStore();
+  const { state, dispatch } = useStore();
+  const cfg       = state.chimolaConfig || {};
+  const titulo    = cfg.titulo    || 'Trabajamos con CHIMOLA';
+  const subtitulo = cfg.subtitulo || 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.';
+  const cta       = cfg.cta       || 'Ver catálogo CHIMOLA';
+  const imgUrl    = cfg.imagen_url || '';
+  if (cfg.visible === 'NO') return null;
   return (
     <div className="max-w-7xl mx-auto px-4 mt-10">
-      <button
-        onClick={() => dispatch({ type:'SET_SECTION', payload:'chimola' })}
-        className="w-full text-left group"
-      >
+      <button onClick={() => dispatch({ type:'SET_SECTION', payload:'chimola' })} className="w-full text-left group">
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-xl">
-          {/* Textura diagonal */}
+          {imgUrl && (
+            <>
+              <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" onError={e=>e.target.style.display='none'}/>
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />
+            </>
+          )}
           <div className="absolute inset-0 opacity-10 pointer-events-none"
             style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
-          {/* Círculo decorativo */}
           <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-yellow-500/20 pointer-events-none" />
           <div className="absolute -left-6 -bottom-6 w-32 h-32 rounded-full bg-amber-600/30 pointer-events-none" />
-
           <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-stretch gap-0">
-            {/* Lado izquierdo — texto */}
             <div className="flex-1 px-7 py-8 sm:py-10">
-              <span className="inline-block text-amber-300 text-[11px] font-black uppercase tracking-[0.18em] mb-3 border border-amber-400/40 rounded-full px-3 py-1">
-                Moda & Accesorios
-              </span>
-              <h2 className="text-white text-3xl sm:text-4xl font-black leading-tight mb-3 tracking-tight">
-                Trabajamos con<br />
-                <span className="text-amber-300">CHIMOLA</span>
-              </h2>
-              <p className="text-amber-100/80 text-sm sm:text-base leading-relaxed mb-6 max-w-md">
-                Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.
-              </p>
+              <span className="inline-block text-amber-300 text-[11px] font-black uppercase tracking-[0.18em] mb-3 border border-amber-400/40 rounded-full px-3 py-1">Moda & Accesorios</span>
+              <h2 className="text-white text-3xl sm:text-4xl font-black leading-tight mb-3 tracking-tight">{titulo}</h2>
+              <p className="text-amber-100/80 text-sm sm:text-base leading-relaxed mb-6 max-w-md">{subtitulo}</p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {['Carteras','Billeteras','Mochilas','Bolsos','Accesorios'].map(t => (
-                  <span key={t} className="text-xs font-semibold text-amber-200 bg-white/10 border border-white/15 px-3 py-1 rounded-full">
-                    {t}
-                  </span>
+                  <span key={t} className="text-xs font-semibold text-amber-200 bg-white/10 border border-white/15 px-3 py-1 rounded-full">{t}</span>
                 ))}
               </div>
               <span className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold text-sm px-6 py-3 rounded-xl shadow-lg group-hover:bg-amber-50 transition-colors">
-                Ver catálogo CHIMOLA
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                {cta} <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </span>
             </div>
-
-            {/* Lado derecho — solo desktop */}
             <div className="hidden sm:flex flex-col justify-center items-center gap-3 px-8 border-l border-white/10">
               <div className="w-28 h-28 rounded-2xl bg-white/10 border-2 border-white/20 flex flex-col items-center justify-center shadow-xl">
-                <span className="text-white font-black text-2xl tracking-tighter leading-none text-center">
-                  CHI<br/>MOLA
-                </span>
+                <span className="text-white font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
               </div>
               <span className="text-amber-300 text-xs font-bold uppercase tracking-widest mt-1">Marca exclusiva</span>
               <div className="flex items-center gap-1.5 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                <MessageCircle className="w-3.5 h-3.5" />
-                Precio mayorista
+                <MessageCircle className="w-3.5 h-3.5" /> Precio mayorista
               </div>
             </div>
           </div>
