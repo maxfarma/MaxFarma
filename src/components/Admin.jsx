@@ -564,49 +564,80 @@ function ProductosTab() {
     const file = e.target.files?.[0]; if(!file) return;
     e.target.value='';
     try {
-      // Cargar JSZip dinámicamente
-      const JSZip = (await import('jszip')).default;
-      const zip = await JSZip.loadAsync(file);
-      const imageFiles = Object.entries(zip.files).filter(([name, f]) =>
-        !f.dir && /\.(jpe?g|png|webp|gif)$/i.test(name)
-      );
-      if(imageFiles.length === 0){ alert('No se encontraron imágenes en el ZIP (.jpg, .png, .webp).'); return; }
+      // Leer ZIP manualmente (formato ZIP es simple: buscar entradas de archivo)
+      const arrayBuffer = await file.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
 
-      setZipProgress({ total: imageFiles.length, done: 0, errors: 0, log: [] });
+      // Parsear el directorio central del ZIP para encontrar archivos
+      const imageEntries = [];
+      let i = 0;
+      while (i < data.length - 4) {
+        // Signature de local file header: PK\x03\x04
+        if (data[i]===0x50 && data[i+1]===0x4B && data[i+2]===0x03 && data[i+3]===0x04) {
+          const compression  = data[i+8]  | (data[i+9]  << 8);
+          const compSize     = data[i+18] | (data[i+19]<<8) | (data[i+20]<<16) | (data[i+21]<<24);
+          const uncompSize   = data[i+22] | (data[i+23]<<8) | (data[i+24]<<16) | (data[i+25]<<24);
+          const nameLen      = data[i+26] | (data[i+27]<<8);
+          const extraLen     = data[i+28] | (data[i+29]<<8);
+          const name         = new TextDecoder().decode(data.slice(i+30, i+30+nameLen));
+          const dataStart    = i + 30 + nameLen + extraLen;
 
-      const urlMap = {}; // nombre_archivo (sin ext) → URL cloudinary
+          if (/\.(jpe?g|png|webp|gif)$/i.test(name) && !name.includes('__MACOSX') && compSize > 0) {
+            const compData = data.slice(dataStart, dataStart + compSize);
+            imageEntries.push({ name, compression, compData, uncompSize });
+          }
+          i = dataStart + compSize;
+        } else { i++; }
+      }
+
+      if(imageEntries.length === 0){ alert('No se encontraron imágenes en el ZIP (.jpg, .png, .webp).\nAsegurate de que las imágenes no estén comprimidas (usa ZIP sin compresión) o subí las imágenes una por una desde el formulario de producto.'); return; }
+
+      setZipProgress({ total: imageEntries.length, done: 0, errors: 0 });
+      const urlMap = {};
       let done = 0, errors = 0;
 
-      for(const [name, zipEntry] of imageFiles) {
-        const baseName = name.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase().trim();
+      for(const entry of imageEntries) {
+        const baseName = entry.name.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase().trim();
         try {
-          const blob = await zipEntry.async('blob');
-          const ext  = name.split('.').pop();
-          const imgFile = new File([blob], `${baseName}.${ext}`, { type: `image/${ext === 'jpg' ? 'jpeg' : ext}` });
+          let fileData = entry.compData;
+          // Descomprimir si está comprimido (método 8 = deflate)
+          if (entry.compression === 8) {
+            const ds = new DecompressionStream('deflate-raw');
+            const writer = ds.writable.getWriter();
+            const reader = ds.readable.getReader();
+            writer.write(entry.compData);
+            writer.close();
+            const chunks = [];
+            let result;
+            while (!(result = await reader.read()).done) chunks.push(result.value);
+            fileData = new Uint8Array(chunks.reduce((a,c) => a+c.length, 0));
+            let offset = 0;
+            for(const chunk of chunks) { fileData.set(chunk, offset); offset += chunk.length; }
+          }
+          const ext = entry.name.split('.').pop().toLowerCase();
+          const mime = ext==='jpg'||ext==='jpeg' ? 'image/jpeg' : ext==='png' ? 'image/png' : ext==='webp' ? 'image/webp' : 'image/gif';
+          const blob = new Blob([fileData], { type: mime });
+          const imgFile = new File([blob], `${baseName}.${ext}`, { type: mime });
           const url = await uploadToCloudinary(imgFile);
           urlMap[baseName] = url;
           done++;
-        } catch(err) {
-          errors++;
-        }
-        setZipProgress(p => ({ ...p, done: done, errors, log: [...(p?.log||[]), name] }));
+        } catch(err) { errors++; }
+        setZipProgress({ total: imageEntries.length, done, errors });
       }
 
-      // Vincular URLs a los productos por código de barra o nombre
       const updated = state.products.map(p => {
         const codigoKey = (p.codigo_barra||p.codigo||'').toLowerCase().trim();
         const nombreKey = (p.nombre||'').toLowerCase().trim().slice(0,30);
         const url = urlMap[codigoKey] || urlMap[nombreKey];
         return url ? { ...p, imagen_url: url } : p;
       });
-
       dispatch({ type:'SET_PRODUCTS', payload: updated });
       saveConfig('products', updated);
-      setTimeout(() => setZipProgress(null), 4000);
-      alert(`✓ ${done} imagen(es) subidas y vinculadas. ${errors > 0 ? `${errors} error(es).` : ''}\n\nNombré las imágenes con el código de barra o el nombre del producto para que se vinculen automáticamente.`);
+      setTimeout(() => setZipProgress(null), 3000);
+      alert(`✓ ${done} imagen(es) subidas y vinculadas.${errors > 0 ? ` ${errors} error(es).` : ''}`);
     } catch(err) {
       setZipProgress(null);
-      alert('Error al leer el ZIP: ' + err.message);
+      alert('Error al procesar el ZIP: ' + err.message);
     }
   };
 
