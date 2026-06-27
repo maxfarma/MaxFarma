@@ -191,6 +191,9 @@ function ChimolaBanner() {
   const subtitulo = cfg.subtitulo || 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.';
   const cta       = cfg.cta       || 'Ver catálogo CHIMOLA';
   const imgUrl    = cfg.imagen_url || '';
+  const sinTextura = cfg.sin_textura === 'SI';
+  const sinOverlay = cfg.sin_overlay === 'SI';
+  const imgOpacity = parseInt(cfg.img_opacity || 30) / 100;
   if (cfg.visible === 'NO') return null;
   return (
     <div className="max-w-7xl mx-auto px-4 mt-10">
@@ -198,12 +201,14 @@ function ChimolaBanner() {
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-xl">
           {imgUrl && (
             <>
-              <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" onError={e=>e.target.style.display='none'}/>
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />
+              <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover" style={{opacity: imgOpacity}} onError={e=>e.target.style.display='none'}/>
+              {!sinOverlay && <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />}
             </>
           )}
-          <div className="absolute inset-0 opacity-10 pointer-events-none"
-            style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
+          {!sinTextura && (
+            <div className="absolute inset-0 opacity-10 pointer-events-none"
+              style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
+          )}
           <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-yellow-500/20 pointer-events-none" />
           <div className="absolute -left-6 -bottom-6 w-32 h-32 rounded-full bg-amber-600/30 pointer-events-none" />
           <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-stretch gap-0">
@@ -222,7 +227,7 @@ function ChimolaBanner() {
             </div>
             <div className="hidden sm:flex flex-col justify-center items-center gap-3 px-8 border-l border-white/10">
               <div className="w-28 h-28 rounded-2xl bg-white border-2 border-white/30 flex items-center justify-center shadow-xl overflow-hidden p-2">
-                <img src="https://scontent-eze1-2.xx.fbcdn.net/v/t39.30808-6/348444665_3041693429459883_3109437929373028317_n.jpg?stp=dst-jpg_tt6&cstp=mx1952x1952&ctp=s1952x1952&_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=WfGNpFxIUrYQ7kNvwE5gWuV&_nc_oc=Adr09mHhValgADM3-GeKkwWEN7Eud2XnsOwfbeko99YFhLb_iVmBkjnxR_l_v4nuSU8&_nc_zt=23&_nc_ht=scontent-eze1-2.xx&_nc_gid=f0wQNR7B_1E8jJFDbUv0LQ&_nc_ss=7b289&oh=00_Af-grpoPMsnZcxSPw5UAI6TvoALQmiaVbXLfPW3V5D7LQg&oe=6A45E657" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
+                <img src="https://res.cloudinary.com/dximjpxq7/image/upload/chimola_logo" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
                 <span style={{display:'none'}} className="text-amber-900 font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
               </div>
               <span className="text-amber-300 text-xs font-bold uppercase tracking-widest mt-1">Marca exclusiva</span>

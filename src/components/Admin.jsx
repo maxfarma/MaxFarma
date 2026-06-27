@@ -2131,11 +2131,14 @@ function ChimolaBannerConfig() {
   // Leemos config de Chimola desde state.config (Firestore 'config' doc)
   const saved = state.chimolaConfig || {};
   const [form, setForm] = useState({
-    titulo:    saved.titulo    ?? 'Trabajamos con CHIMOLA',
-    subtitulo: saved.subtitulo ?? 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.',
-    imagen_url: saved.imagen_url ?? '',
-    cta:       saved.cta       ?? 'Ver catálogo CHIMOLA',
-    visible:   saved.visible   ?? 'SI',
+    titulo:      saved.titulo      ?? 'Trabajamos con CHIMOLA',
+    subtitulo:   saved.subtitulo   ?? 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.',
+    imagen_url:  saved.imagen_url  ?? '',
+    cta:         saved.cta         ?? 'Ver catálogo CHIMOLA',
+    visible:     saved.visible     ?? 'SI',
+    sin_textura: saved.sin_textura ?? 'NO',
+    sin_overlay: saved.sin_overlay ?? 'NO',
+    img_opacity: saved.img_opacity ?? '30',
   });
   const [saving, setSaving] = useState(false);
   const set = (k,v) => setForm(f => ({...f,[k]:v}));
@@ -2160,12 +2163,14 @@ function ChimolaBannerConfig() {
       <div className="relative overflow-hidden rounded-2xl mb-6 bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-lg min-h-[140px]">
         {form.imagen_url && (
           <>
-            <img src={form.imagen_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-30" onError={e=>e.target.style.display='none'}/>
-            <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />
+            <img src={form.imagen_url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{opacity: parseInt(form.img_opacity||30)/100}} onError={e=>e.target.style.display='none'}/>
+            {form.sin_overlay !== 'SI' && <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />}
           </>
         )}
-        <div className="absolute inset-0 opacity-10 pointer-events-none"
-          style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
+        {form.sin_textura !== 'SI' && (
+          <div className="absolute inset-0 opacity-10 pointer-events-none"
+            style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
+        )}
         <div className="relative z-10 px-8 py-8">
           <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-2">Moda & Accesorios</p>
           <h2 className="text-white text-2xl font-black mb-2">{form.titulo || 'Título'}</h2>
@@ -2190,6 +2195,35 @@ function ChimolaBannerConfig() {
         <div className="md:col-span-2">
           <ImageField label="Imagen de fondo (opcional) — se sube a Cloudinary" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-24 h-16"/>
         </div>
+
+        {/* Controles de imagen — solo se muestran si hay imagen */}
+        {form.imagen_url && (
+          <div className="md:col-span-2 grid sm:grid-cols-3 gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <p className="sm:col-span-3 text-xs font-bold text-amber-800 mb-1">⚙️ Ajustes de la imagen de fondo</p>
+            <Field label="Rayas diagonales">
+              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={form.sin_textura} onChange={e=>set('sin_textura',e.target.value)}>
+                <option value="NO">Con rayas (decorativo)</option>
+                <option value="SI">Sin rayas ✓</option>
+              </select>
+            </Field>
+            <Field label="Sombra marrón sobre imagen">
+              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                value={form.sin_overlay} onChange={e=>set('sin_overlay',e.target.value)}>
+                <option value="NO">Con sombra (texto legible)</option>
+                <option value="SI">Sin sombra — imagen al 100% ✓</option>
+              </select>
+            </Field>
+            <Field label={`Opacidad imagen: ${form.img_opacity||30}%`}>
+              <input type="range" min="20" max="100" value={form.img_opacity||30}
+                onChange={e=>set('img_opacity',e.target.value)}
+                className="w-full accent-amber-700 mt-2"/>
+              <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
+                <span>20% (oscura)</span><span>100% (plena)</span>
+              </div>
+            </Field>
+          </div>
+        )}
         <Field label="Texto del botón">
           <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
             value={form.cta} onChange={e=>set('cta',e.target.value)} placeholder="Ver catálogo CHIMOLA"/>
