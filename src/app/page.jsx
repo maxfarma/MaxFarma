@@ -221,8 +221,9 @@ function ChimolaBanner() {
               </span>
             </div>
             <div className="hidden sm:flex flex-col justify-center items-center gap-3 px-8 border-l border-white/10">
-              <div className="w-28 h-28 rounded-2xl bg-white/10 border-2 border-white/20 flex flex-col items-center justify-center shadow-xl">
-                <span className="text-white font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
+              <div className="w-28 h-28 rounded-2xl bg-white border-2 border-white/30 flex items-center justify-center shadow-xl overflow-hidden p-2">
+                <img src="https://res.cloudinary.com/dximjpxq7/image/upload/chimola_logo" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
+                <span style={{display:'none'}} className="text-amber-900 font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
               </div>
               <span className="text-amber-300 text-xs font-bold uppercase tracking-widest mt-1">Marca exclusiva</span>
               <div className="flex items-center gap-1.5 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
@@ -283,8 +284,9 @@ function Chimola() {
         <div className="absolute inset-0 opacity-10 pointer-events-none"
           style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 12px)' }} />
         <div className="relative max-w-5xl mx-auto px-4 py-10 sm:py-14 flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <div className="w-20 h-20 flex-shrink-0 bg-white/10 border-2 border-white/30 rounded-2xl flex items-center justify-center shadow-xl">
-            <span className="text-white font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
+          <div className="w-20 h-20 flex-shrink-0 bg-white border-2 border-white/30 rounded-2xl flex items-center justify-center shadow-xl overflow-hidden p-1.5">
+            <img src="https://res.cloudinary.com/dximjpxq7/image/upload/chimola_logo" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
+            <span style={{display:'none'}} className="text-amber-900 font-black text-xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
           </div>
           <div className="text-center sm:text-left">
             <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-1">Catálogo</p>
