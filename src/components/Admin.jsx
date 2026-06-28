@@ -897,29 +897,34 @@ function ProductosTab() {
 function ProductForm({ product, onSave, onCancel }) {
   const [form, setForm] = useState({...product});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const isMarcaModa = ['chimola','lima'].includes((form.marca||'').toLowerCase());
   return (
     <div>
       <button onClick={onCancel} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors"><ArrowLeft className="w-4 h-4"/>Volver</button>
       <h2 className="text-lg font-bold text-gray-900 mb-6">{form._isNew?'Nuevo producto':'Editar producto'}</h2>
       <div className="grid md:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 p-6">
         <Field label="Nombre *" col2><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.nombre} onChange={e=>set('nombre',e.target.value)} placeholder="Crema Nivea 400ml"/></Field>
-        <Field label="Marca"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.marca} onChange={e=>set('marca',e.target.value)} placeholder="Nivea"/></Field>
+        <Field label="Marca">
+          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.marca} onChange={e=>set('marca',e.target.value)} placeholder="Ej: CHIMOLA, LIMA, Nivea..."/>
+          <p className="text-[11px] text-gray-400 mt-1">Escribí CHIMOLA o LIMA para productos de moda</p>
+        </Field>
         <Field label="Categoría">
           <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.categoria} onChange={e=>set('categoria',e.target.value)}>
             {Object.entries(CAT_LABELS).filter(([k])=>k!=='todos').map(([k,v])=><option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        <Field label="Subcategoría CHIMOLA">
-          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.subcategoria||''} onChange={e=>set('subcategoria',e.target.value)}>
-            <option value="">— Sin subcategoría —</option>
-            <option value="carteras">Carteras</option>
-            <option value="billeteras">Billeteras</option>
-            <option value="mochilas">Mochilas</option>
-            <option value="bolsos">Bolsos</option>
-            <option value="accesorios">Accesorios</option>
-          </select>
-          <p className="text-[11px] text-gray-400 mt-1">Solo para productos de la marca CHIMOLA</p>
-        </Field>
+        {isMarcaModa && (
+          <Field label="Subcategoría">
+            <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.subcategoria||''} onChange={e=>set('subcategoria',e.target.value)}>
+              <option value="">— Sin subcategoría —</option>
+              <option value="carteras">Carteras</option>
+              <option value="billeteras">Billeteras</option>
+              <option value="mochilas">Mochilas</option>
+              <option value="bolsos">Bolsos</option>
+              <option value="accesorios">Accesorios</option>
+            </select>
+          </Field>
+        )}
         <Field label="Stock">
           <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.stock} onChange={e=>set('stock',e.target.value)}>
             <option value="Disponible">Disponible</option><option value="Sin stock">Sin stock</option><option value="Bajo stock">Bajo stock</option><option value="Por encargo">Por encargo</option>
@@ -933,9 +938,12 @@ function ProductForm({ product, onSave, onCancel }) {
           </select>
         </Field>
         <Field label="Código de barra"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo_barra||''} onChange={e=>set('codigo_barra',e.target.value)} placeholder="7790001234567"/></Field>
-        <Field label="Código interno (EAN)"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/></Field>
+        <Field label="Código interno"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/></Field>
         <Field label="Características" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.caracteristica||''} onChange={e=>set('caracteristica',e.target.value)} placeholder="Material, medidas, colores disponibles..."/></Field>
         <Field label="Descripción" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.descripcion} onChange={e=>set('descripcion',e.target.value)}/></Field>
+        <div className="md:col-span-2">
+          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-20"/>
+        </div>
       </div>
       <div className="flex gap-3 mt-5">
         <button onClick={onCancel} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
@@ -2194,7 +2202,7 @@ function ChimolaTab() {
 
   // Productos de la marca CHIMOLA
   const chimolaProducts = state.products.filter(
-    p => (p.marca || '').toLowerCase() === 'chimola'
+    p => ['chimola','lima'].includes((p.marca || '').toLowerCase())
   );
 
   // Guardar / editar producto CHIMOLA
@@ -2381,42 +2389,137 @@ function ChimolaBannerConfig() {
 }
 
 function ChimolaProductsConfig({ products, onEdit, onDelete, onNew }) {
-  const [filterSub, setFilterSub] = useState('todos');
+  const { state, dispatch, saveConfig } = useStore();
+  const [filterSub, setFilterSub]   = useState('todos');
+  const [filterMarca, setFilterMarca] = useState('todos');
+  const [xlsxModal, setXlsxModal]   = useState(null);
+  const [xlsxMode, setXlsxMode]     = useState('add');
+  const fileRef = useRef(null);
 
-  const filtered = filterSub === 'todos'
-    ? products
-    : products.filter(p => (p.subcategoria||'').toLowerCase() === filterSub);
+  // Filtrar por subcategoría y marca
+  const filtered = products.filter(p => {
+    const marcaOk  = filterMarca === 'todos' || (p.marca||'').toLowerCase() === filterMarca;
+    const subcatOk = filterSub   === 'todos' || (p.subcategoria||'').toLowerCase() === filterSub;
+    return marcaOk && subcatOk;
+  });
+
+  // Leer XLSX — acepta cualquier marca de moda (CHIMOLA, LIMA, etc.)
+  const handleXlsx = (e) => {
+    const file = e.target.files?.[0]; if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+        const get = (r, ...keys) => { for(const k of keys){ const v = r[k]||r[k.toLowerCase()]||r[k.toUpperCase()]||r[k.charAt(0).toUpperCase()+k.slice(1)]; if(v!==undefined && v!=='') return v; } return ''; };
+        const prods = rows.map((r,i) => ({
+          codigo:        String(get(r,'codigo_barra','codigo','ean','barcode') || ('MODA-'+Date.now()+i)),
+          codigo_barra:  String(get(r,'codigo_barra','barcode','ean','codigo') || ''),
+          nombre:        String(get(r,'nombre','name','producto') || ''),
+          marca:         String(get(r,'marca','brand') || 'CHIMOLA').toUpperCase(),
+          categoria:     String(get(r,'categoria','category') || 'accesorios'),
+          subcategoria:  String(get(r,'subcategoria','subcategory') || '').toLowerCase(),
+          precio:        Number(get(r,'precio','price') || 0),
+          precio_oferta: String(get(r,'precio_oferta','precio oferta','oferta') || ''),
+          caracteristica:String(get(r,'caracteristica','caracteristicas','descripcion') || '').slice(0,500),
+          descripcion:   String(get(r,'descripcion','description','caracteristica') || '').slice(0,500),
+          stock:         String(get(r,'stock') || 'Disponible'),
+          destacado:     'NO',
+          imagen_url:    String(get(r,'imagen_url','imagen','image') || ''),
+        })).filter(p => p.nombre);
+        if(!prods.length){ alert('No se encontraron productos. Verificá que el archivo tenga la columna "nombre".'); return; }
+        setXlsxModal(prods);
+        setXlsxMode('add');
+      } catch(err){ alert('Error al leer XLSX: '+err.message); }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value='';
+  };
+
+  const confirmImport = () => {
+    if(!xlsxModal) return;
+    let updated;
+    if(xlsxMode === 'replace') {
+      // Solo reemplaza los productos de moda, conserva los de farmacia
+      const farmacia = state.products.filter(p => !['chimola','lima'].includes((p.marca||'').toLowerCase()));
+      updated = [...farmacia, ...xlsxModal];
+    } else {
+      const map = new Map(state.products.map(p=>[p.codigo,p]));
+      xlsxModal.forEach(p => map.set(p.codigo, p));
+      updated = Array.from(map.values());
+    }
+    dispatch({ type:'SET_PRODUCTS', payload: updated });
+    saveConfig('products', updated);
+    setXlsxModal(null);
+  };
+
+  const downloadTemplate = () => {
+    const headers = [['nombre','precio','precio_oferta','caracteristica','marca','codigo_barra','subcategoria','stock','imagen_url']];
+    const ejemplos = [
+      ['Cartera Modelo A','15000','12000','Material cuero sintético, cierre dorado, 30x20cm','CHIMOLA','7790001234567','carteras','Disponible',''],
+      ['Billetera Mini','8000','','Cuero vegano, 3 compartimentos','CHIMOLA','7790001234568','billeteras','Disponible',''],
+      ['Mochila Urbana','22000','18000','Poliéster resistente, laptop hasta 15"','LIMA','7790009876543','mochilas','Disponible',''],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...ejemplos]);
+    ws['!cols'] = [30,10,12,40,10,16,12,12,40].map(w=>({wch:w}));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Productos Moda');
+    XLSX.writeFile(wb, 'plantilla_chimola_lima.xlsx');
+  };
 
   return (
     <div>
       <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 text-sm text-blue-800">
-        <strong>¿Cómo agregar productos CHIMOLA?</strong> Hacé clic en "Nuevo producto CHIMOLA" y completá el formulario. 
-        El campo <strong>Subcategoría</strong> (carteras, billeteras, mochilas, etc.) hace que el producto aparezca 
-        en el filtro correspondiente dentro del catálogo CHIMOLA. La marca se establece automáticamente como CHIMOLA.
+        <strong>Marcas soportadas: CHIMOLA y LIMA</strong> — En la columna <code className="bg-blue-100 px-1 rounded">marca</code> del Excel escribí CHIMOLA o LIMA. 
+        La columna <code className="bg-blue-100 px-1 rounded">subcategoria</code> puede ser: carteras, billeteras, mochilas, bolsos, accesorios.
       </div>
 
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
+        {/* Filtro marca */}
+        <div className="flex gap-1">
+          {[['todos','Todas'],['chimola','CHIMOLA'],['lima','LIMA']].map(([k,l]) => (
+            <button key={k} onClick={() => setFilterMarca(k)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-colors ${
+                filterMarca===k ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              }`}>{l}</button>
+          ))}
+        </div>
+        <div className="w-px h-5 bg-gray-200"/>
+        {/* Filtro subcategoría */}
         <div className="flex gap-1 overflow-x-auto">
-          {[['todos','Todos'],['carteras','Carteras'],['billeteras','Billeteras'],['mochilas','Mochilas'],['bolsos','Bolsos'],['accesorios','Accesorios']].map(([k,l]) => (
+          {[['todos','Todo'],['carteras','Carteras'],['billeteras','Billeteras'],['mochilas','Mochilas'],['bolsos','Bolsos'],['accesorios','Accesorios']].map(([k,l]) => (
             <button key={k} onClick={() => setFilterSub(k)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-colors ${
                 filterSub===k ? 'bg-amber-800 text-white border-amber-800' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400'
               }`}>{l}</button>
           ))}
         </div>
-        <button onClick={onNew}
-          className="ml-auto flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors">
-          <Plus className="w-4 h-4"/> Nuevo producto CHIMOLA
-        </button>
+        {/* Botones acción */}
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
+            <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 rounded-md transition-colors" title="Descargar plantilla Excel">
+              <Download className="w-3.5 h-3.5"/> Plantilla
+            </button>
+            <div className="w-px h-5 bg-gray-200"/>
+            <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-md transition-colors">
+              <Upload className="w-3.5 h-3.5"/> Importar XLSX
+            </button>
+          </div>
+          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleXlsx}/>
+          <button onClick={onNew} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors">
+            <Plus className="w-4 h-4"/> Nuevo producto
+          </button>
+        </div>
       </div>
 
+      {/* Tabla */}
       {filtered.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
           <ShoppingBag className="w-10 h-10 text-amber-200 mx-auto mb-3"/>
-          <p className="text-gray-400 text-sm">No hay productos{filterSub !== 'todos' ? ` en ${filterSub}` : ' CHIMOLA'}</p>
-          <button onClick={onNew} className="mt-4 text-sm font-semibold text-amber-800 hover:underline">
-            + Agregar el primero
-          </button>
+          <p className="text-gray-400 text-sm">No hay productos{filterSub !== 'todos' ? ` en ${filterSub}` : ''}{filterMarca !== 'todos' ? ` de ${filterMarca.toUpperCase()}` : ''}</p>
+          <button onClick={onNew} className="mt-4 text-sm font-semibold text-amber-800 hover:underline">+ Agregar el primero</button>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -2424,6 +2527,7 @@ function ChimolaProductsConfig({ products, onEdit, onDelete, onNew }) {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Producto</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Marca</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Subcategoría</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
@@ -2443,14 +2547,17 @@ function ChimolaProductsConfig({ products, onEdit, onDelete, onNew }) {
                       )}
                       <div>
                         <p className="font-semibold text-gray-800 leading-tight">{p.nombre}</p>
-                        <p className="text-xs text-gray-400 font-mono">#{p.codigo}</p>
+                        <p className="text-xs text-gray-400 font-mono">#{p.codigo_barra||p.codigo}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full capitalize">
-                      {p.subcategoria || '—'}
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${(p.marca||'').toLowerCase()==='lima' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+                      {p.marca||'—'}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 hidden sm:table-cell">
+                    <span className="text-xs text-gray-500 capitalize">{p.subcategoria||'—'}</span>
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-semibold text-gray-800">
@@ -2468,13 +2575,56 @@ function ChimolaProductsConfig({ products, onEdit, onDelete, onNew }) {
             </tbody>
           </table>
           <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-            <p className="text-xs text-gray-400">{filtered.length} producto(s){filterSub !== 'todos' ? ` en ${filterSub}` : ' CHIMOLA en total'}</p>
+            <p className="text-xs text-gray-400">{filtered.length} producto(s)</p>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmación XLSX */}
+      {xlsxModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={() => setXlsxModal(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="font-bold text-gray-900 text-lg mb-1">Importar productos de moda</h3>
+            <p className="text-sm text-gray-500 mb-4">Se encontraron <strong>{xlsxModal.length} productos</strong> en el archivo.</p>
+            <div className="mb-4 rounded-xl border border-gray-100 overflow-hidden">
+              {xlsxModal.slice(0,3).map((p,i) => (
+                <div key={i} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
+                  <p className="text-sm font-semibold text-gray-800">{p.nombre}</p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    <span className={`text-xs font-bold ${(p.marca||'').toLowerCase()==='lima'?'text-green-600':'text-amber-700'}`}>{p.marca}</span>
+                    {p.subcategoria && <span className="text-xs text-gray-400">• {p.subcategoria}</span>}
+                    {p.precio > 0 && <span className="text-xs text-gray-400">• ${Number(p.precio).toLocaleString('es-AR')}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 mb-5">
+              <button onClick={() => setXlsxMode('add')} className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left ${xlsxMode==='add'?'border-amber-600 bg-amber-50':'border-gray-200'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='add'?'border-amber-600':' border-gray-300'}`}>
+                  {xlsxMode==='add'&&<div className="w-2.5 h-2.5 rounded-full bg-amber-600"/>}
+                </div>
+                <div><p className="font-semibold text-sm">Agregar al catálogo existente</p><p className="text-xs text-gray-500 mt-0.5">Los nuevos se suman. Si el código ya existe, se actualiza.</p></div>
+              </button>
+              <button onClick={() => setXlsxMode('replace')} className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left ${xlsxMode==='replace'?'border-red-500 bg-red-50':'border-gray-200'}`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='replace'?'border-red-500':'border-gray-300'}`}>
+                  {xlsxMode==='replace'&&<div className="w-2.5 h-2.5 rounded-full bg-red-500"/>}
+                </div>
+                <div><p className="font-semibold text-sm">Reemplazar productos de moda</p><p className="text-xs text-gray-500 mt-0.5">⚠ Reemplaza solo CHIMOLA y LIMA, conserva los productos de farmacia.</p></div>
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setXlsxModal(null)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl">Cancelar</button>
+              <button onClick={confirmImport} className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl ${xlsxMode==='replace'?'bg-red-600 hover:bg-red-700':'bg-amber-800 hover:bg-amber-900'}`}>
+                {xlsxMode==='replace'?'Reemplazar productos moda':'Agregar productos'}
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
+
 
 function ChimolaProductForm({ product, onSave, onCancel }) {
   const [form, setForm] = useState({ ...product });
@@ -2529,6 +2679,9 @@ function ChimolaProductForm({ product, onSave, onCancel }) {
           <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
             value={form.codigo||''} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/>
         </Field>
+        <div className="md:col-span-2">
+          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-20"/>
+        </div>
       </div>
       <div className="flex gap-3 mt-5">
         <button onClick={onCancel} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
