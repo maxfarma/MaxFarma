@@ -256,13 +256,17 @@ const CHIMOLA_SUBCATS = [
 
 function Chimola() {
   const { state, dispatch } = useStore();
-  const [subcat, setSubcat] = useState('todos');
-  const [query,  setQuery]  = useState('');
+  const [subcat, setSubcat]   = useState('todos');
+  const [marca, setMarca]     = useState('todas');
+  const [query,  setQuery]    = useState('');
 
   const chimola = useMemo(() => {
     let list = state.products.filter(
-      p => (p.marca || '').toLowerCase() === 'chimola'
+      p => ['chimola','lima'].includes((p.marca || '').toLowerCase())
     );
+    if (marca !== 'todas') {
+      list = list.filter(p => (p.marca || '').toLowerCase() === marca);
+    }
     if (subcat !== 'todos') {
       list = list.filter(p =>
         (p.categoria    || '').toLowerCase() === subcat ||
@@ -278,7 +282,7 @@ function Chimola() {
       );
     }
     return list;
-  }, [state.products, subcat, query]);
+  }, [state.products, subcat, marca, query]);
 
   const waMsg = encodeURIComponent('¡Hola! Quiero consultar precios mayoristas de productos CHIMOLA.');
 
@@ -295,7 +299,7 @@ function Chimola() {
           </div>
           <div className="text-center sm:text-left">
             <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-1">Catálogo</p>
-            <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight mb-2">CHIMOLA</h1>
+            <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight mb-2">CHIMOLA <span className="text-amber-300">&amp;</span> LIMA</h1>
             <p className="text-amber-100/80 text-sm max-w-md mb-4">
               Carteras, billeteras, mochilas y accesorios de moda con calidad y estilo.
             </p>
@@ -322,6 +326,22 @@ function Chimola() {
             className="ml-auto text-xs font-bold text-green-600 hover:underline flex items-center gap-1">
             Consultar <ChevronRight className="w-3.5 h-3.5" />
           </a>
+        </div>
+      </div>
+
+      {/* Filtro de marca */}
+      <div className="bg-white border-b border-gray-100">
+        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-2">
+          {[['todas','Todas las marcas'],['chimola','CHIMOLA'],['lima','LIMA']].map(([k,l]) => (
+            <button key={k} onClick={() => setMarca(k)}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                marca === k
+                  ? k === 'lima' ? 'bg-green-700 text-white border-green-700' : k === 'chimola' ? 'bg-amber-800 text-white border-amber-800' : 'bg-gray-800 text-white border-gray-800'
+                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+              }`}>
+              {l}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -386,27 +406,31 @@ function Chimola() {
 
 function ChimolaCard({ product, waMsg }) {
   const { dispatch } = useStore();
+  const marca = (product.marca || 'CHIMOLA').toUpperCase();
+  const isLima = marca === 'LIMA';
   return (
     <div onClick={() => dispatch({ type:'OPEN_PRODUCT_MODAL', payload:product })}
       className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden group">
-      <div className="relative aspect-square bg-amber-50 overflow-hidden">
+      <div className={`relative aspect-square overflow-hidden ${isLima ? 'bg-green-50' : 'bg-amber-50'}`}>
         {product.imagen_url ? (
           <img src={product.imagen_url} alt={product.nombre}
             className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300" loading="lazy" />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-            <ShoppingBag className="w-10 h-10 text-amber-300" />
-            <span className="text-[10px] text-amber-400 font-semibold">CHIMOLA</span>
+            <ShoppingBag className={`w-10 h-10 ${isLima ? 'text-green-300' : 'text-amber-300'}`} />
+            <span className={`text-[10px] font-semibold ${isLima ? 'text-green-500' : 'text-amber-400'}`}>{marca}</span>
           </div>
         )}
+        <span className={`absolute top-2 left-2 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white ${isLima ? 'bg-green-700' : 'bg-amber-800'}`}>
+          {marca}
+        </span>
       </div>
       <div className="p-3">
-        <p className="text-[10px] text-amber-700 font-bold uppercase tracking-widest mb-0.5">CHIMOLA</p>
-        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug mb-3">{product.nombre}</h3>
+        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug mb-3 mt-1">{product.nombre}</h3>
         {product.precio && parseFloat(product.precio) > 0 ? (
           <p className="text-base font-bold text-gray-900 mb-2">${formatPrice(parseFloat(product.precio))}</p>
         ) : (
-          <p className="text-xs font-semibold text-amber-700 mb-2">Consultá el precio</p>
+          <p className={`text-xs font-semibold mb-2 ${isLima ? 'text-green-700' : 'text-amber-700'}`}>Consultá el precio</p>
         )}
         <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
