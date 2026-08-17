@@ -2,10 +2,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore, formatPrice, ORDER_STATUS_LABELS, CAT_LABELS, CAT_ICONS, DEFAULT_CATS, getCatLabels, getCatIcons } from '@/lib/store';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, query as firestoreQuery, orderBy, doc as firestoreDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query as firestoreQuery, orderBy, doc as firestoreDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import * as XLSX from 'xlsx';
 import ImageField from '@/components/ImageField';
-import { uploadToCloudinary } from '@/lib/cloudinary';
 import {
   X, Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp,
   Save, ArrowLeft, Eye, EyeOff, Lock, Package, CreditCard,
@@ -91,7 +90,23 @@ export default function Admin() {
   };
 
   const updateStatus = async (order, status) => {
-    if (order._fbId) await updateDoc(doc(db,'pedidos',order._fbId),{ estado:status });
+    if (order._fbId) {
+      await updateDoc(firestoreDoc(db,'pedidos',order._fbId), {
+        estado: status,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
+  const deleteOrder = async (order) => {
+    if (order._fbId) {
+      await deleteDoc(firestoreDoc(db,'pedidos',order._fbId));
+    }
+  };
+
+  const deleteCompleted = async () => {
+    const toDelete = orders.filter(o => o.estado === 'completado' || o.estado === 'cancelado');
+    await Promise.all(toDelete.map(o => o._fbId ? deleteDoc(firestoreDoc(db,'pedidos',o._fbId)) : null));
   };
 
   const filtered = statusFilter==='todos' ? orders : orders.filter(o=>o.estado===statusFilter);
@@ -126,172 +141,84 @@ export default function Admin() {
     );
   }
 
-  // Grupos del menú para organizar sin eliminar nada
-  const TAB_GROUPS = [
-    {
-      label: 'Ventas',
-      color: '#C8102E',
-      tabs: [
-        { key:'pedidos', label:'Pedidos', icon:<ShoppingBag className="w-4 h-4"/>, badge:nuevos||null },
-        { key:'suscriptores', label:'Suscriptores', icon:<Users className="w-4 h-4"/> },
-      ]
-    },
-    {
-      label: 'Catálogo',
-      color: '#2B6CB0',
-      tabs: [
-        { key:'productos',  label:'Productos',   icon:<Package className="w-4 h-4"/> },
-        { key:'categorias', label:'Categorías',  icon:<LayoutDashboard className="w-4 h-4"/> },
-        { key:'programas',  label:'Programas',   icon:<Tag className="w-4 h-4"/> },
-        { key:'chimola',    label:'CHIMOLA',     icon:<ShoppingBag className="w-4 h-4"/>, accent:'amber' },
-      ]
-    },
-    {
-      label: 'Contenido',
-      color: '#2F855A',
-      tabs: [
-        { key:'banners', label:'Banners',          icon:<Image className="w-4 h-4"/> },
-        { key:'promos',  label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
-        { key:'paginas', label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
-      ]
-    },
-    {
-      label: 'Sistema',
-      color: '#718096',
-      tabs: [
-        { key:'config', label:'Configuración', icon:<Settings className="w-4 h-4"/> },
-      ]
-    },
+  const TABS = [
+    { key:'pedidos',   label:'Pedidos',         icon:<ShoppingBag className="w-4 h-4"/>, badge:nuevos||null },
+    { key:'productos', label:'Productos',        icon:<Package className="w-4 h-4"/> },
+    { key:'promos',    label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
+    { key:'banners',   label:'Banners',          icon:<Image className="w-4 h-4"/> },
+    { key:'paginas',   label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
+    { key:'suscriptores', label:'Suscriptores',    icon:<Users className="w-4 h-4"/> },
+    { key:'categorias', label:'Categorías',        icon:<LayoutDashboard className="w-4 h-4"/> },
+    { key:'programas', label:'Programas',         icon:<Tag className="w-4 h-4"/> },
+    { key:'config',    label:'Configuración',    icon:<Settings className="w-4 h-4"/> },
   ];
-
-  const allTabs = TAB_GROUPS.flatMap(g => g.tabs);
-  const activeGroup = TAB_GROUPS.find(g => g.tabs.some(t => t.key === tab));
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ── Header del panel ── */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4">
-          {/* Fila superior: logo + grupos + salir */}
-          <div className="h-12 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="w-7 h-7 rounded-lg bg-[#C8102E] flex items-center justify-center">
-                <LayoutDashboard className="w-4 h-4 text-white"/>
-              </div>
-              <span className="font-bold text-gray-900 text-sm hidden sm:block">Panel MaxFarma</span>
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-[#C8102E] flex items-center justify-center">
+              <LayoutDashboard className="w-4 h-4 text-white"/>
             </div>
-
-            {/* Grupos — desktop */}
-            <nav className="hidden sm:flex items-center gap-1 flex-1 justify-center">
-              {TAB_GROUPS.map(g => {
-                const isGroupActive = g.tabs.some(t => t.key === tab);
-                return (
-                  <div key={g.label} className="relative group">
-                    <button
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                        isGroupActive ? 'text-white' : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                      style={isGroupActive ? { background: g.color } : {}}
-                      onClick={() => setTab(g.tabs[0].key)}
-                    >
-                      {g.label}
-                      {g.tabs.some(t => t.badge) && (
-                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${isGroupActive ? 'bg-white text-[#C8102E]' : 'bg-[#C8102E] text-white'}`}>
-                          {g.tabs.find(t=>t.badge)?.badge}
-                        </span>
-                      )}
-                    </button>
-                    {/* Dropdown hover */}
-                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-100 rounded-xl shadow-lg p-1 min-w-[160px] opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
-                      {g.tabs.map(t => (
-                        <button key={t.key} onClick={() => setTab(t.key)}
-                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors text-left ${
-                            tab === t.key
-                              ? t.accent === 'amber' ? 'bg-amber-50 text-amber-800' : 'bg-[#FFF0F3] text-[#C8102E]'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}>
-                          <span className={t.accent === 'amber' ? 'text-amber-600' : ''}>{t.icon}</span>
-                          {t.label}
-                          {t.badge && <span className="ml-auto bg-[#C8102E] text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{t.badge}</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </nav>
-
-            <button onClick={()=>{ setUnlocked(false); dispatch({ type:'SET_SECTION', payload:'inicio' }); }}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 font-medium transition-colors flex-shrink-0">
-              <ArrowLeft className="w-3.5 h-3.5"/> Salir
-            </button>
-          </div>
-
-          {/* Fila secundaria: tabs del grupo activo */}
-          {activeGroup && (
-            <div className="flex gap-1 pb-0 overflow-x-auto scrollbar-none border-t border-gray-50 pt-1">
-              {activeGroup.tabs.map(t => (
-                <button key={t.key} onClick={() => setTab(t.key)}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap rounded-t-lg border-b-2 transition-colors ${
-                    tab === t.key
-                      ? t.accent === 'amber'
-                        ? 'border-amber-600 text-amber-800 bg-amber-50'
-                        : 'border-[#C8102E] text-[#C8102E]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}>
-                  <span className={tab === t.key && t.accent === 'amber' ? 'text-amber-600' : ''}>{t.icon}</span>
-                  {t.label}
-                  {t.badge && <span className="bg-[#C8102E] text-white text-xs rounded-full px-1.5 py-0.5 leading-none">{t.badge}</span>}
+            <span className="font-semibold text-gray-900 text-sm">Panel MaxFarma</span>
+            <span className="hidden sm:block text-gray-300">|</span>
+            <nav className="hidden sm:flex items-center gap-1">
+              {TABS.map(t => (
+                <button key={t.key} onClick={()=>setTab(t.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab===t.key?'bg-[#C8102E] text-white':'text-gray-600 hover:bg-gray-100'}`}>
+                  {t.icon} {t.label}
+                  {t.badge && <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${tab===t.key?'bg-white text-[#C8102E]':'bg-[#C8102E] text-white'}`}>{t.badge}</span>}
                 </button>
               ))}
-            </div>
-          )}
-
-          {/* Mobile: scroll horizontal de todos los tabs */}
-          <div className="sm:hidden flex overflow-x-auto border-t border-gray-100 gap-0.5 px-0.5 py-1.5">
-            {allTabs.map(t => (
-              <button key={t.key} onClick={() => setTab(t.key)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold whitespace-nowrap rounded-lg border transition-colors flex-shrink-0 ${
-                  tab === t.key
-                    ? t.accent === 'amber'
-                      ? 'bg-amber-800 text-white border-amber-800'
-                      : 'bg-[#C8102E] text-white border-[#C8102E]'
-                    : 'border-gray-200 text-gray-600 bg-white'
-                }`}>
-                {t.icon} {t.label}
-                {t.badge && <span className={`text-xs font-bold px-1 rounded-full leading-none ${tab===t.key?'bg-white text-[#C8102E]':'bg-[#C8102E] text-white'}`}>{t.badge}</span>}
-              </button>
-            ))}
+            </nav>
           </div>
+          <button onClick={()=>{ setUnlocked(false); dispatch({ type:'SET_SECTION', payload:'inicio' }); }} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 font-medium transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5"/> Salir al sitio
+          </button>
+        </div>
+        <div className="sm:hidden flex overflow-x-auto border-t border-gray-100 px-2">
+          {TABS.map(t => (
+            <button key={t.key} onClick={()=>setTab(t.key)}
+              className={`flex items-center gap-1 px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${tab===t.key?'border-[#C8102E] text-[#C8102E]':'border-transparent text-gray-500'}`}>
+              {t.icon} {t.label}
+              {t.badge && <span className="bg-[#C8102E] text-white text-xs rounded-full px-1 leading-none py-0.5">{t.badge}</span>}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {tab==='pedidos'      && <PedidosTab orders={filtered} statusFilter={statusFilter} setStatusFilter={setStatusFilter} updateStatus={updateStatus} allOrders={orders}/>}
-        {tab==='productos'    && <ProductosTab/>}
-        {tab==='promos'       && <PromosTab/>}
-        {tab==='banners'      && <BannersTab/>}
-        {tab==='paginas'      && <PaginasTab/>}
+        {tab==='pedidos'   && <PedidosTab orders={filtered} statusFilter={statusFilter} setStatusFilter={setStatusFilter} updateStatus={updateStatus} deleteOrder={deleteOrder} deleteCompleted={deleteCompleted} allOrders={orders}/>}
+        {tab==='productos' && <ProductosTab/>}
+        {tab==='promos'    && <PromosTab/>}
+        {tab==='banners'   && <BannersTab/>}
+        {tab==='paginas'   && <PaginasTab/>}
         {tab==='suscriptores' && <SuscriptoresTab/>}
-        {tab==='categorias'   && <CategoriasTab/>}
-        {tab==='programas'    && <ProgramasTab/>}
-        {tab==='config'       && <ConfigTab/>}
-        {tab==='chimola'      && <ChimolaTab/>}
+        {tab==='categorias' && <CategoriasTab/>}
+        {tab==='programas' && <ProgramasTab/>}
+        {tab==='config'    && <ConfigTab/>}
       </div>
     </div>
   );
 }
 
 /* ═══ PEDIDOS ═══ */
-function PedidosTab({ orders, statusFilter, setStatusFilter, updateStatus, allOrders }) {
+function PedidosTab({ orders, statusFilter, setStatusFilter, updateStatus, deleteOrder, deleteCompleted, allOrders }) {
+  const [confirmDelOrder, setConfirmDelOrder] = useState(null); // order object
+  const [confirmDelAll, setConfirmDelAll]     = useState(false);
+  const completadosCount = allOrders.filter(o => o.estado === 'completado' || o.estado === 'cancelado').length;
+
   const stats = [
     { label:'Nuevos',      val:allOrders.filter(o=>o.estado==='nuevo').length,      color:'text-blue-600',  bg:'bg-blue-50' },
     { label:'En proceso',  val:allOrders.filter(o=>o.estado==='en-proceso').length, color:'text-amber-600', bg:'bg-amber-50' },
     { label:'Completados', val:allOrders.filter(o=>o.estado==='completado').length, color:'text-green-600', bg:'bg-green-50' },
     { label:'Total',       val:allOrders.length,                                    color:'text-gray-700',  bg:'bg-gray-100' },
   ];
+
   return (
     <div>
+      {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {stats.map(s=>(
           <div key={s.label} className={`${s.bg} rounded-xl p-4`}>
@@ -300,8 +227,11 @@ function PedidosTab({ orders, statusFilter, setStatusFilter, updateStatus, allOr
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-3 mb-4">
-        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]">
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]">
           <option value="todos">Todos los estados</option>
           <option value="nuevo">Nuevos</option>
           <option value="en-proceso">En Proceso</option>
@@ -309,20 +239,59 @@ function PedidosTab({ orders, statusFilter, setStatusFilter, updateStatus, allOr
           <option value="cancelado">Cancelados</option>
         </select>
         <span className="text-sm text-gray-400">{orders.length} pedido(s)</span>
+
+        {/* Limpiar completados/cancelados */}
+        {completadosCount > 0 && (
+          <button
+            onClick={() => setConfirmDelAll(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors ml-auto">
+            <Trash2 className="w-4 h-4" />
+            Eliminar completados y cancelados ({completadosCount})
+          </button>
+        )}
       </div>
+
+      {/* Lista */}
       {orders.length===0 ? (
         <div className="text-center py-20 bg-white rounded-xl border border-gray-100">
           <ShoppingBag className="w-10 h-10 text-gray-200 mx-auto mb-3"/>
           <p className="text-gray-400 text-sm">No hay pedidos para mostrar</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">{orders.map((o,i)=><OrderCard key={o._fbId||i} order={o} onStatusChange={updateStatus}/>)}</div>
+        <div className="flex flex-col gap-3">
+          {orders.map((o,i) => (
+            <OrderCard
+              key={o._fbId||i}
+              order={o}
+              onStatusChange={updateStatus}
+              onDelete={() => setConfirmDelOrder(o)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Confirmar eliminar uno */}
+      {confirmDelOrder && (
+        <ConfirmModal
+          message={`¿Eliminar el pedido de ${confirmDelOrder.cliente}? Esta acción no se puede deshacer.`}
+          onConfirm={async () => { await deleteOrder(confirmDelOrder); setConfirmDelOrder(null); }}
+          onCancel={() => setConfirmDelOrder(null)}
+        />
+      )}
+
+      {/* Confirmar eliminar todos los completados/cancelados */}
+      {confirmDelAll && (
+        <ConfirmModal
+          message={`¿Eliminar los ${completadosCount} pedidos completados y cancelados? Esta acción no se puede deshacer.`}
+          onConfirm={async () => { await deleteCompleted(); setConfirmDelAll(false); }}
+          onCancel={() => setConfirmDelAll(false)}
+        />
       )}
     </div>
   );
 }
 
-function OrderCard({ order, onStatusChange }) {
+function OrderCard({ order, onStatusChange, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus]     = useState(order.estado||'nuevo');
   const [saving, setSaving]     = useState(false);
@@ -385,6 +354,13 @@ function OrderCard({ order, onStatusChange }) {
           </div>
           <button onClick={()=>setExpanded(!expanded)} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
             {expanded?<ChevronUp className="w-4 h-4"/>:<ChevronDown className="w-4 h-4"/>}
+          </button>
+          {/* Eliminar pedido */}
+          <button
+            onClick={() => onDelete && onDelete()}
+            className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+            title="Eliminar pedido">
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -504,28 +480,9 @@ function ProductosTab() {
     return '¿Eliminar este producto?';
   };
 
-  const [xlsxMode, setXlsxMode] = useState('add');
-  const [xlsxModalData, setXlsxModalData] = useState(null);
-  const [imgZipRef] = useState(() => ({ current: null }));
-  const [zipProgress, setZipProgress] = useState(null); // null | { total, done, errors }
+  const [xlsxMode, setXlsxMode] = useState('add'); // 'add' | 'replace'
+  const [xlsxModalData, setXlsxModalData] = useState(null); // productos leídos del Excel
 
-  /* ── Descargar plantilla Excel ── */
-  const downloadTemplate = () => {
-    const headers = [
-      ['nombre','precio','precio_oferta','caracteristica','marca','codigo_barra','categoria','subcategoria','stock','imagen_url']
-    ];
-    const ejemplo = [
-      ['Cartera CHIMOLA Modelo A', 15000, 12000, 'Material cuero sintético, cierre dorado, 30x20cm', 'CHIMOLA', '7790001234567', 'accesorios', 'carteras', 'Disponible', '']
-    ];
-    const ws = XLSX.utils.aoa_to_sheet([...headers, ...ejemplo]);
-    // Ancho de columnas
-    ws['!cols'] = [30,12,14,40,15,18,15,14,12,40].map(w=>({wch:w}));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Productos');
-    XLSX.writeFile(wb, 'plantilla_productos_maxfarma.xlsx');
-  };
-
-  /* ── Leer XLSX ── */
   const handleXlsx = (e) => {
     const file = e.target.files?.[0]; if(!file) return;
     const reader = new FileReader();
@@ -534,23 +491,20 @@ function ProductosTab() {
         const wb = XLSX.read(ev.target.result,{type:'array'});
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws,{defval:''});
-        const get = (r, ...keys) => { for(const k of keys){ const v = r[k]||r[k.toLowerCase()]||r[k.toUpperCase()]||r[k.charAt(0).toUpperCase()+k.slice(1)]; if(v!==undefined && v!=='') return v; } return ''; };
         const products = rows.map((r,i)=>({
-          codigo:         String(get(r,'codigo_barra','codigo','ean','barcode') || ('PRD-'+Date.now()+i)),
-          codigo_barra:   String(get(r,'codigo_barra','barcode','ean','codigo') || ''),
-          nombre:         String(get(r,'nombre','name','producto') || ''),
-          marca:          String(get(r,'marca','brand') || ''),
-          categoria:      String(get(r,'categoria','category') || 'dermocosmetica'),
-          subcategoria:   String(get(r,'subcategoria','subcategory') || ''),
-          precio:         Number(get(r,'precio','price') || 0),
-          precio_oferta:  String(get(r,'precio_oferta','precio oferta','oferta') || ''),
-          caracteristica: String(get(r,'caracteristica','caracteristicas','descripcion','description') || '').slice(0,500),
-          descripcion:    String(get(r,'descripcion','description','caracteristica','caracteristicas') || '').slice(0,500),
-          stock:          String(get(r,'stock') || 'Disponible'),
-          destacado:      String(get(r,'destacado') || 'NO').toUpperCase(),
-          imagen_url:     String(get(r,'imagen_url','imagen','image','foto') || ''),
+          codigo:    String(r.codigo||r.Codigo||r.CODIGO||('PRD-'+Date.now()+i)),
+          nombre:    String(r.nombre||r.Nombre||r.NOMBRE||''),
+          marca:     String(r.marca||r.Marca||r.MARCA||''),
+          categoria: String(r.categoria||r.Categoria||r.CATEGORIA||'dermocosmetica'),
+          precio:    Number(r.precio||r.Precio||r.PRECIO||0),
+          precio_oferta: r.precio_oferta||r.PrecioOferta||'',
+          descripcion: String(r.descripcion||r.Descripcion||'').slice(0,300),
+          stock:     String(r.stock||r.Stock||'Disponible'),
+          destacado: String(r.destacado||r.Destacado||'NO').toUpperCase(),
+          imagen_url: String(r.imagen_url||r.ImagenUrl||r.imagen||''),
         })).filter(p=>p.nombre);
-        if(products.length===0){alert('No se encontraron productos. Verificá que el archivo tenga la columna "nombre".');return;}
+        if(products.length===0){alert('No se encontraron productos en el archivo.');return;}
+        // Mostrar modal de confirmación con opciones
         setXlsxModalData(products);
         setXlsxMode('add');
       } catch(err){alert('Error al leer XLSX: '+err.message);}
@@ -559,94 +513,14 @@ function ProductosTab() {
     e.target.value='';
   };
 
-  /* ── Subir ZIP de imágenes ── */
-  const handleImgZip = async (e) => {
-    const file = e.target.files?.[0]; if(!file) return;
-    e.target.value='';
-    try {
-      // Leer ZIP manualmente (formato ZIP es simple: buscar entradas de archivo)
-      const arrayBuffer = await file.arrayBuffer();
-      const data = new Uint8Array(arrayBuffer);
-
-      // Parsear el directorio central del ZIP para encontrar archivos
-      const imageEntries = [];
-      let i = 0;
-      while (i < data.length - 4) {
-        // Signature de local file header: PK\x03\x04
-        if (data[i]===0x50 && data[i+1]===0x4B && data[i+2]===0x03 && data[i+3]===0x04) {
-          const compression  = data[i+8]  | (data[i+9]  << 8);
-          const compSize     = data[i+18] | (data[i+19]<<8) | (data[i+20]<<16) | (data[i+21]<<24);
-          const uncompSize   = data[i+22] | (data[i+23]<<8) | (data[i+24]<<16) | (data[i+25]<<24);
-          const nameLen      = data[i+26] | (data[i+27]<<8);
-          const extraLen     = data[i+28] | (data[i+29]<<8);
-          const name         = new TextDecoder().decode(data.slice(i+30, i+30+nameLen));
-          const dataStart    = i + 30 + nameLen + extraLen;
-
-          if (/\.(jpe?g|png|webp|gif)$/i.test(name) && !name.includes('__MACOSX') && compSize > 0) {
-            const compData = data.slice(dataStart, dataStart + compSize);
-            imageEntries.push({ name, compression, compData, uncompSize });
-          }
-          i = dataStart + compSize;
-        } else { i++; }
-      }
-
-      if(imageEntries.length === 0){ alert('No se encontraron imágenes en el ZIP (.jpg, .png, .webp).\nAsegurate de que las imágenes no estén comprimidas (usa ZIP sin compresión) o subí las imágenes una por una desde el formulario de producto.'); return; }
-
-      setZipProgress({ total: imageEntries.length, done: 0, errors: 0 });
-      const urlMap = {};
-      let done = 0, errors = 0;
-
-      for(const entry of imageEntries) {
-        const baseName = entry.name.split('/').pop().replace(/\.[^.]+$/, '').toLowerCase().trim();
-        try {
-          let fileData = entry.compData;
-          // Descomprimir si está comprimido (método 8 = deflate)
-          if (entry.compression === 8) {
-            const ds = new DecompressionStream('deflate-raw');
-            const writer = ds.writable.getWriter();
-            const reader = ds.readable.getReader();
-            writer.write(entry.compData);
-            writer.close();
-            const chunks = [];
-            let result;
-            while (!(result = await reader.read()).done) chunks.push(result.value);
-            fileData = new Uint8Array(chunks.reduce((a,c) => a+c.length, 0));
-            let offset = 0;
-            for(const chunk of chunks) { fileData.set(chunk, offset); offset += chunk.length; }
-          }
-          const ext = entry.name.split('.').pop().toLowerCase();
-          const mime = ext==='jpg'||ext==='jpeg' ? 'image/jpeg' : ext==='png' ? 'image/png' : ext==='webp' ? 'image/webp' : 'image/gif';
-          const blob = new Blob([fileData], { type: mime });
-          const imgFile = new File([blob], `${baseName}.${ext}`, { type: mime });
-          const url = await uploadToCloudinary(imgFile);
-          urlMap[baseName] = url;
-          done++;
-        } catch(err) { errors++; }
-        setZipProgress({ total: imageEntries.length, done, errors });
-      }
-
-      const updated = state.products.map(p => {
-        const codigoKey = (p.codigo_barra||p.codigo||'').toLowerCase().trim();
-        const nombreKey = (p.nombre||'').toLowerCase().trim().slice(0,30);
-        const url = urlMap[codigoKey] || urlMap[nombreKey];
-        return url ? { ...p, imagen_url: url } : p;
-      });
-      dispatch({ type:'SET_PRODUCTS', payload: updated });
-      saveConfig('products', updated);
-      setTimeout(() => setZipProgress(null), 3000);
-      alert(`✓ ${done} imagen(es) subidas y vinculadas.${errors > 0 ? ` ${errors} error(es).` : ''}`);
-    } catch(err) {
-      setZipProgress(null);
-      alert('Error al procesar el ZIP: ' + err.message);
-    }
-  };
-
   const confirmXlsxImport = () => {
     if (!xlsxModalData) return;
     let updated;
     if (xlsxMode === 'replace') {
+      // Reemplazar todo
       updated = xlsxModalData;
     } else {
+      // Agregar al catálogo existente — si el código ya existe, actualizar; si no, agregar
       const existing = new Map(state.products.map(p => [p.codigo, p]));
       xlsxModalData.forEach(p => existing.set(p.codigo, p));
       updated = Array.from(existing.values());
@@ -675,31 +549,10 @@ function ProductosTab() {
         <button onClick={()=>setEditingProduct({...EMPTY_PRODUCT,_isNew:true})} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
           <Plus className="w-4 h-4"/> Nuevo
         </button>
-
-        {/* Grupo importar */}
-        <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
-          <button onClick={downloadTemplate}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 rounded-md transition-colors"
-            title="Descargar plantilla Excel con las columnas correctas">
-            <Download className="w-3.5 h-3.5"/> Plantilla
-          </button>
-          <div className="w-px h-5 bg-gray-200"/>
-          <button onClick={()=>fileRef.current?.click()}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-md transition-colors"
-            title="Importar productos desde Excel">
-            <Upload className="w-3.5 h-3.5"/> Importar XLSX
-          </button>
-          <div className="w-px h-5 bg-gray-200"/>
-          <button onClick={()=>imgZipRef.current?.click()}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-purple-700 hover:bg-purple-50 rounded-md transition-colors"
-            title="Subir un ZIP con imágenes — se vinculan por código de barra o nombre">
-            <Image className="w-3.5 h-3.5"/> Subir imágenes ZIP
-          </button>
-        </div>
-
+        <button onClick={()=>fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg transition-colors">
+          <Upload className="w-4 h-4"/> Importar XLSX
+        </button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleXlsx}/>
-        <input ref={r => imgZipRef.current = r} type="file" accept=".zip" className="hidden" onChange={handleImgZip}/>
-
         {/* Eliminar todos */}
         {state.products.length > 0 && (
           <button onClick={()=>setConfirmDelete('all')}
@@ -708,22 +561,6 @@ function ProductosTab() {
           </button>
         )}
       </div>
-
-      {/* ── Progreso ZIP ── */}
-      {zipProgress && (
-        <div className="mb-3 px-4 py-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin flex-shrink-0"/>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-purple-800">
-              Subiendo imágenes… {zipProgress.done}/{zipProgress.total}
-              {zipProgress.errors > 0 && <span className="text-red-500 ml-2">({zipProgress.errors} errores)</span>}
-            </p>
-            <div className="mt-1.5 h-1.5 bg-purple-100 rounded-full overflow-hidden">
-              <div className="h-full bg-purple-500 rounded-full transition-all" style={{width:`${(zipProgress.done/zipProgress.total)*100}%`}}/>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Barra de acciones cuando hay selección ── */}
       {someSelected && (
@@ -826,65 +663,70 @@ function ProductosTab() {
       {/* Modal de importación XLSX */}
       {xlsxModalData && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={() => setXlsxModalData(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h3 className="font-bold text-gray-900 text-lg mb-1">Importar productos</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Se encontraron <strong>{xlsxModalData.length} productos</strong> en el archivo.
+            <p className="text-sm text-gray-500 mb-5">
+              Se encontraron <strong>{xlsxModalData.length} productos</strong> en el archivo. 
               Actualmente tenés <strong>{state.products.length} productos</strong> en el catálogo.
             </p>
 
-            {/* Preview primeros 3 productos */}
-            <div className="mb-4 rounded-xl border border-gray-100 overflow-hidden">
-              <div className="bg-gray-50 px-3 py-2 border-b border-gray-100">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Vista previa (primeros {Math.min(3, xlsxModalData.length)})</p>
-              </div>
-              {xlsxModalData.slice(0,3).map((p,i) => (
-                <div key={i} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">{p.nombre}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                    {p.marca && <span className="text-xs text-gray-400">Marca: <b>{p.marca}</b></span>}
-                    {p.precio > 0 && <span className="text-xs text-gray-400">Precio: <b>${p.precio.toLocaleString('es-AR')}</b></span>}
-                    {p.precio_oferta && <span className="text-xs text-green-600">Oferta: <b>${parseFloat(p.precio_oferta).toLocaleString('es-AR')}</b></span>}
-                    {p.codigo_barra && <span className="text-xs text-gray-400">Cód: <b>{p.codigo_barra}</b></span>}
-                    {p.subcategoria && <span className="text-xs text-amber-600">Sub: <b>{p.subcategoria}</b></span>}
-                  </div>
-                  {p.caracteristica && <p className="text-xs text-gray-400 mt-0.5 truncate">{p.caracteristica}</p>}
-                </div>
-              ))}
-            </div>
-
             {/* Opciones */}
-            <div className="flex flex-col gap-3 mb-5">
-              <button onClick={() => setXlsxMode('add')}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${xlsxMode==='add'?'border-[#C8102E] bg-[#FFF0F3]':'border-gray-200 hover:border-gray-300'}`}>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='add'?'border-[#C8102E]':'border-gray-300'}`}>
-                  {xlsxMode==='add'&&<div className="w-2.5 h-2.5 rounded-full bg-[#C8102E]"/>}
+            <div className="flex flex-col gap-3 mb-6">
+              <button
+                onClick={() => setXlsxMode('add')}
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                  xlsxMode === 'add'
+                    ? 'border-[#C8102E] bg-[#FFF0F3]'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  xlsxMode === 'add' ? 'border-[#C8102E]' : 'border-gray-300'
+                }`}>
+                  {xlsxMode === 'add' && <div className="w-2.5 h-2.5 rounded-full bg-[#C8102E]" />}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Agregar al catálogo existente</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Los productos nuevos se suman. Si el código ya existe, se actualiza.</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Los productos nuevos se suman. Si un código ya existe, se actualiza. 
+                    Total final: ~{state.products.length + xlsxModalData.length} productos.
+                  </p>
                 </div>
               </button>
-              <button onClick={() => setXlsxMode('replace')}
-                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${xlsxMode==='replace'?'border-red-500 bg-red-50':'border-gray-200 hover:border-gray-300'}`}>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='replace'?'border-red-500':'border-gray-300'}`}>
-                  {xlsxMode==='replace'&&<div className="w-2.5 h-2.5 rounded-full bg-red-500"/>}
+
+              <button
+                onClick={() => setXlsxMode('replace')}
+                className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                  xlsxMode === 'replace'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${
+                  xlsxMode === 'replace' ? 'border-red-500' : 'border-gray-300'
+                }`}>
+                  {xlsxMode === 'replace' && <div className="w-2.5 h-2.5 rounded-full bg-red-500" />}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">Reemplazar todo el catálogo</p>
-                  <p className="text-xs text-gray-500 mt-0.5">⚠ Borra los {state.products.length} productos actuales y los reemplaza con los {xlsxModalData.length} del archivo.</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    ⚠ Borra los {state.products.length} productos actuales y los reemplaza 
+                    con los {xlsxModalData.length} del archivo.
+                  </p>
                 </div>
               </button>
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setXlsxModalData(null)}
+              <button
+                onClick={() => setXlsxModalData(null)}
                 className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors">
                 Cancelar
               </button>
-              <button onClick={confirmXlsxImport}
-                className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl transition-colors ${xlsxMode==='replace'?'bg-red-600 hover:bg-red-700':'bg-[#C8102E] hover:bg-[#9B0D22]'}`}>
-                {xlsxMode==='replace'?'Reemplazar catálogo':'Agregar productos'}
+              <button
+                onClick={confirmXlsxImport}
+                className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl transition-colors ${
+                  xlsxMode === 'replace' ? 'bg-red-600 hover:bg-red-700' : 'bg-[#C8102E] hover:bg-[#9B0D22]'
+                }`}>
+                {xlsxMode === 'replace' ? 'Reemplazar catálogo' : 'Agregar productos'}
               </button>
             </div>
           </div>
@@ -897,34 +739,18 @@ function ProductosTab() {
 function ProductForm({ product, onSave, onCancel }) {
   const [form, setForm] = useState({...product});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
-  const isMarcaModa = ['chimola','lima'].includes((form.marca||'').toLowerCase());
   return (
     <div>
       <button onClick={onCancel} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors"><ArrowLeft className="w-4 h-4"/>Volver</button>
       <h2 className="text-lg font-bold text-gray-900 mb-6">{form._isNew?'Nuevo producto':'Editar producto'}</h2>
       <div className="grid md:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 p-6">
         <Field label="Nombre *" col2><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.nombre} onChange={e=>set('nombre',e.target.value)} placeholder="Crema Nivea 400ml"/></Field>
-        <Field label="Marca">
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.marca} onChange={e=>set('marca',e.target.value)} placeholder="Ej: CHIMOLA, LIMA, Nivea..."/>
-          <p className="text-[11px] text-gray-400 mt-1">Escribí CHIMOLA o LIMA para productos de moda</p>
-        </Field>
+        <Field label="Marca"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.marca} onChange={e=>set('marca',e.target.value)} placeholder="Nivea"/></Field>
         <Field label="Categoría">
           <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.categoria} onChange={e=>set('categoria',e.target.value)}>
             {Object.entries(CAT_LABELS).filter(([k])=>k!=='todos').map(([k,v])=><option key={k} value={k}>{v}</option>)}
           </select>
         </Field>
-        {isMarcaModa && (
-          <Field label="Subcategoría">
-            <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.subcategoria||''} onChange={e=>set('subcategoria',e.target.value)}>
-              <option value="">— Sin subcategoría —</option>
-              <option value="carteras">Carteras</option>
-              <option value="billeteras">Billeteras</option>
-              <option value="mochilas">Mochilas</option>
-              <option value="bolsos">Bolsos</option>
-              <option value="accesorios">Accesorios</option>
-            </select>
-          </Field>
-        )}
         <Field label="Stock">
           <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.stock} onChange={e=>set('stock',e.target.value)}>
             <option value="Disponible">Disponible</option><option value="Sin stock">Sin stock</option><option value="Bajo stock">Bajo stock</option><option value="Por encargo">Por encargo</option>
@@ -937,13 +763,11 @@ function ProductForm({ product, onSave, onCancel }) {
             <option value="NO">No destacar</option><option value="SI">Destacado</option>
           </select>
         </Field>
-        <Field label="Código de barra"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo_barra||''} onChange={e=>set('codigo_barra',e.target.value)} placeholder="7790001234567"/></Field>
-        <Field label="Código interno"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/></Field>
-        <Field label="Características" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.caracteristica||''} onChange={e=>set('caracteristica',e.target.value)} placeholder="Material, medidas, colores disponibles..."/></Field>
-        <Field label="Descripción" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.descripcion} onChange={e=>set('descripcion',e.target.value)}/></Field>
+        <Field label="Código EAN"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.codigo} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/></Field>
         <div className="md:col-span-2">
-          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-20"/>
+          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-16 h-16"/>
         </div>
+        <Field label="Descripción" col2><textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]" rows={2} value={form.descripcion} onChange={e=>set('descripcion',e.target.value)}/></Field>
       </div>
       <div className="flex gap-3 mt-5">
         <button onClick={onCancel} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
@@ -2186,509 +2010,6 @@ function ProductosSelectorPrograma({ form, set, state }) {
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════
-   TAB: CHIMOLA — Banner + productos de la marca
-═══════════════════════════════════════════════════════════ */
-const CHIMOLA_SUBCATS_ADMIN = ['carteras','billeteras','mochilas','bolsos','accesorios'];
-
-function ChimolaTab() {
-  const { state, dispatch, saveConfig } = useStore();
-  const [section, setSection] = useState('banner'); // 'banner' | 'productos'
-  const [editingProduct, setEditingProduct] = useState(null);
-
-  // Productos de la marca CHIMOLA
-  const chimolaProducts = state.products.filter(
-    p => ['chimola','lima'].includes((p.marca || '').toLowerCase())
-  );
-
-  // Guardar / editar producto CHIMOLA
-  const saveProduct = (form) => {
-    if (!form.nombre) { alert('El nombre es obligatorio.'); return; }
-    const clean = { ...form, marca: 'CHIMOLA' }; delete clean._isNew;
-    if (!clean.codigo) clean.codigo = 'CHI-' + Date.now();
-    const updated = form._isNew
-      ? [...state.products, clean]
-      : state.products.map(p => p.codigo === clean.codigo ? clean : p);
-    dispatch({ type:'SET_PRODUCTS', payload:updated });
-    saveConfig('products', updated);
-    setEditingProduct(null);
-  };
-
-  const deleteProduct = (codigo) => {
-    if (!confirm('¿Eliminar este producto CHIMOLA?')) return;
-    const updated = state.products.filter(p => p.codigo !== codigo);
-    dispatch({ type:'SET_PRODUCTS', payload:updated });
-    saveConfig('products', updated);
-  };
-
-  if (editingProduct) {
-    return <ChimolaProductForm product={editingProduct} onSave={saveProduct} onCancel={() => setEditingProduct(null)} />;
-  }
-
-  return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-amber-800 flex items-center justify-center flex-shrink-0 shadow">
-          <span className="text-white font-black text-xs leading-none text-center">CHI<br/>MOLA</span>
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">Gestión CHIMOLA</h2>
-          <p className="text-xs text-gray-400">{chimolaProducts.length} productos cargados</p>
-        </div>
-      </div>
-
-      {/* Sub-tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-200">
-        {[['banner','🎨 Banner principal'],['productos','📦 Productos']].map(([k,l]) => (
-          <button key={k} onClick={() => setSection(k)}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              section === k ? 'border-amber-700 text-amber-800' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}>
-            {l}
-          </button>
-        ))}
-      </div>
-
-      {section === 'banner' && <ChimolaBannerConfig />}
-      {section === 'productos' && (
-        <ChimolaProductsConfig
-          products={chimolaProducts}
-          onEdit={p => setEditingProduct({ ...p })}
-          onDelete={deleteProduct}
-          onNew={() => setEditingProduct({ _isNew:true, codigo:'', nombre:'', marca:'CHIMOLA', subcategoria:'carteras', precio:'', precio_oferta:'', descripcion:'', imagen_url:'', stock:'Disponible', destacado:'NO', categoria:'accesorios' })}
-        />
-      )}
-    </div>
-  );
-}
-
-function ChimolaBannerConfig() {
-  const { state, dispatch, saveConfig } = useStore();
-
-  // Leemos config de Chimola desde state.config (Firestore 'config' doc)
-  const saved = state.chimolaConfig || {};
-  const [form, setForm] = useState({
-    titulo:      saved.titulo      ?? 'Trabajamos con CHIMOLA',
-    subtitulo:   saved.subtitulo   ?? 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.',
-    imagen_url:  saved.imagen_url  ?? '',
-    cta:         saved.cta         ?? 'Ver catálogo CHIMOLA',
-    visible:     saved.visible     ?? 'SI',
-    sin_textura: saved.sin_textura ?? 'NO',
-    sin_overlay: saved.sin_overlay ?? 'NO',
-    img_opacity: saved.img_opacity ?? '30',
-  });
-  const [saving, setSaving] = useState(false);
-  const set = (k,v) => setForm(f => ({...f,[k]:v}));
-
-  const save = async () => {
-    setSaving(true);
-    dispatch({ type:'SET_CHIMOLA_CONFIG', payload: form });
-    await saveConfig('chimolaConfig', form);
-    setSaving(false);
-    alert('Banner CHIMOLA guardado ✓');
-  };
-
-  return (
-    <div>
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
-        <strong>¿Qué es este banner?</strong> Es el panel dorado grande que aparece en la página de inicio 
-        debajo del carrusel, que dice "Trabajamos con CHIMOLA". Podés cambiar el texto, agregar una imagen de fondo 
-        y personalizar el botón.
-      </div>
-
-      {/* Vista previa */}
-      <div className="relative overflow-hidden rounded-2xl mb-6 bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-lg min-h-[140px]">
-        {form.imagen_url && (
-          <>
-            <img src={form.imagen_url} alt="" className="absolute inset-0 w-full h-full object-cover" style={{opacity: parseInt(form.img_opacity||30)/100}} onError={e=>e.target.style.display='none'}/>
-            {form.sin_overlay !== 'SI' && <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />}
-          </>
-        )}
-        {form.sin_textura !== 'SI' && (
-          <div className="absolute inset-0 opacity-10 pointer-events-none"
-            style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
-        )}
-        <div className="relative z-10 px-8 py-8">
-          <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-2">Moda & Accesorios</p>
-          <h2 className="text-white text-2xl font-black mb-2">{form.titulo || 'Título'}</h2>
-          <p className="text-amber-100/80 text-sm mb-4 max-w-md">{form.subtitulo}</p>
-          <span className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold text-sm px-5 py-2.5 rounded-xl">
-            {form.cta} →
-          </span>
-        </div>
-        <span className="absolute bottom-2 right-3 text-white/30 text-xs">Vista previa</span>
-      </div>
-
-      {/* Formulario */}
-      <div className="bg-white rounded-xl border border-gray-200 p-6 grid md:grid-cols-2 gap-4">
-        <Field label="Título principal" col2>
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="Trabajamos con CHIMOLA"/>
-        </Field>
-        <Field label="Texto descriptivo" col2>
-          <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400" rows={2}
-            value={form.subtitulo} onChange={e=>set('subtitulo',e.target.value)}/>
-        </Field>
-        <div className="md:col-span-2">
-          <ImageField label="Imagen de fondo (opcional) — se sube a Cloudinary" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-24 h-16"/>
-        </div>
-
-        {/* Controles de imagen — solo se muestran si hay imagen */}
-        {form.imagen_url && (
-          <div className="md:col-span-2 grid sm:grid-cols-3 gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <p className="sm:col-span-3 text-xs font-bold text-amber-800 mb-1">⚙️ Ajustes de la imagen de fondo</p>
-            <Field label="Rayas diagonales">
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-                value={form.sin_textura} onChange={e=>set('sin_textura',e.target.value)}>
-                <option value="NO">Con rayas (decorativo)</option>
-                <option value="SI">Sin rayas ✓</option>
-              </select>
-            </Field>
-            <Field label="Sombra marrón sobre imagen">
-              <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-                value={form.sin_overlay} onChange={e=>set('sin_overlay',e.target.value)}>
-                <option value="NO">Con sombra (texto legible)</option>
-                <option value="SI">Sin sombra — imagen al 100% ✓</option>
-              </select>
-            </Field>
-            <Field label={`Opacidad imagen: ${form.img_opacity||30}%`}>
-              <input type="range" min="20" max="100" value={form.img_opacity||30}
-                onChange={e=>set('img_opacity',e.target.value)}
-                className="w-full accent-amber-700 mt-2"/>
-              <div className="flex justify-between text-[10px] text-gray-400 mt-0.5">
-                <span>20% (oscura)</span><span>100% (plena)</span>
-              </div>
-            </Field>
-          </div>
-        )}
-        <Field label="Texto del botón">
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.cta} onChange={e=>set('cta',e.target.value)} placeholder="Ver catálogo CHIMOLA"/>
-        </Field>
-        <Field label="Estado del banner">
-          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.visible} onChange={e=>set('visible',e.target.value)}>
-            <option value="SI">Visible en el inicio</option>
-            <option value="NO">Oculto</option>
-          </select>
-        </Field>
-      </div>
-      <div className="flex gap-3 mt-4">
-        <button onClick={save} disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors disabled:opacity-60">
-          <Save className="w-4 h-4"/> {saving ? 'Guardando…' : 'Guardar banner'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ChimolaProductsConfig({ products, onEdit, onDelete, onNew }) {
-  const { state, dispatch, saveConfig } = useStore();
-  const [filterSub, setFilterSub]   = useState('todos');
-  const [filterMarca, setFilterMarca] = useState('todos');
-  const [xlsxModal, setXlsxModal]   = useState(null);
-  const [xlsxMode, setXlsxMode]     = useState('add');
-  const fileRef = useRef(null);
-
-  // Filtrar por subcategoría y marca
-  const filtered = products.filter(p => {
-    const marcaOk  = filterMarca === 'todos' || (p.marca||'').toLowerCase() === filterMarca;
-    const subcatOk = filterSub   === 'todos' || (p.subcategoria||'').toLowerCase() === filterSub;
-    return marcaOk && subcatOk;
-  });
-
-  // Leer XLSX — acepta cualquier marca de moda (CHIMOLA, LIMA, etc.)
-  const handleXlsx = (e) => {
-    const file = e.target.files?.[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const wb = XLSX.read(ev.target.result, { type:'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
-        const get = (r, ...keys) => { for(const k of keys){ const v = r[k]||r[k.toLowerCase()]||r[k.toUpperCase()]||r[k.charAt(0).toUpperCase()+k.slice(1)]; if(v!==undefined && v!=='') return v; } return ''; };
-        const prods = rows.map((r,i) => ({
-          codigo:        String(get(r,'codigo_barra','codigo','ean','barcode') || ('MODA-'+Date.now()+i)),
-          codigo_barra:  String(get(r,'codigo_barra','barcode','ean','codigo') || ''),
-          nombre:        String(get(r,'nombre','name','producto') || ''),
-          marca:         String(get(r,'marca','brand') || 'CHIMOLA').toUpperCase(),
-          categoria:     String(get(r,'categoria','category') || 'accesorios'),
-          subcategoria:  String(get(r,'subcategoria','subcategory') || '').toLowerCase(),
-          precio:        Number(get(r,'precio','price') || 0),
-          precio_oferta: String(get(r,'precio_oferta','precio oferta','oferta') || ''),
-          caracteristica:String(get(r,'caracteristica','caracteristicas','descripcion') || '').slice(0,500),
-          descripcion:   String(get(r,'descripcion','description','caracteristica') || '').slice(0,500),
-          stock:         String(get(r,'stock') || 'Disponible'),
-          destacado:     'NO',
-          imagen_url:    String(get(r,'imagen_url','imagen','image') || ''),
-        })).filter(p => p.nombre);
-        if(!prods.length){ alert('No se encontraron productos. Verificá que el archivo tenga la columna "nombre".'); return; }
-        setXlsxModal(prods);
-        setXlsxMode('add');
-      } catch(err){ alert('Error al leer XLSX: '+err.message); }
-    };
-    reader.readAsArrayBuffer(file);
-    e.target.value='';
-  };
-
-  const confirmImport = () => {
-    if(!xlsxModal) return;
-    let updated;
-    if(xlsxMode === 'replace') {
-      // Solo reemplaza los productos de moda, conserva los de farmacia
-      const farmacia = state.products.filter(p => !['chimola','lima'].includes((p.marca||'').toLowerCase()));
-      updated = [...farmacia, ...xlsxModal];
-    } else {
-      const map = new Map(state.products.map(p=>[p.codigo,p]));
-      xlsxModal.forEach(p => map.set(p.codigo, p));
-      updated = Array.from(map.values());
-    }
-    dispatch({ type:'SET_PRODUCTS', payload: updated });
-    saveConfig('products', updated);
-    setXlsxModal(null);
-  };
-
-  const downloadTemplate = () => {
-    const headers = [['nombre','precio','precio_oferta','caracteristica','marca','codigo_barra','subcategoria','stock','imagen_url']];
-    const ejemplos = [
-      ['Cartera Modelo A','15000','12000','Material cuero sintético, cierre dorado, 30x20cm','CHIMOLA','7790001234567','carteras','Disponible',''],
-      ['Billetera Mini','8000','','Cuero vegano, 3 compartimentos','CHIMOLA','7790001234568','billeteras','Disponible',''],
-      ['Mochila Urbana','22000','18000','Poliéster resistente, laptop hasta 15"','LIMA','7790009876543','mochilas','Disponible',''],
-    ];
-    const ws = XLSX.utils.aoa_to_sheet([...headers, ...ejemplos]);
-    ws['!cols'] = [30,10,12,40,10,16,12,12,40].map(w=>({wch:w}));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Productos Moda');
-    XLSX.writeFile(wb, 'plantilla_chimola_lima.xlsx');
-  };
-
-  return (
-    <div>
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5 text-sm text-blue-800">
-        <strong>Marcas soportadas: CHIMOLA y LIMA</strong> — En la columna <code className="bg-blue-100 px-1 rounded">marca</code> del Excel escribí CHIMOLA o LIMA. 
-        La columna <code className="bg-blue-100 px-1 rounded">subcategoria</code> puede ser: carteras, billeteras, mochilas, bolsos, accesorios.
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Filtro marca */}
-        <div className="flex gap-1">
-          {[['todos','Todas'],['chimola','CHIMOLA'],['lima','LIMA']].map(([k,l]) => (
-            <button key={k} onClick={() => setFilterMarca(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-colors ${
-                filterMarca===k ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
-              }`}>{l}</button>
-          ))}
-        </div>
-        <div className="w-px h-5 bg-gray-200"/>
-        {/* Filtro subcategoría */}
-        <div className="flex gap-1 overflow-x-auto">
-          {[['todos','Todo'],['carteras','Carteras'],['billeteras','Billeteras'],['mochilas','Mochilas'],['bolsos','Bolsos'],['accesorios','Accesorios']].map(([k,l]) => (
-            <button key={k} onClick={() => setFilterSub(k)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border flex-shrink-0 transition-colors ${
-                filterSub===k ? 'bg-amber-800 text-white border-amber-800' : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400'
-              }`}>{l}</button>
-          ))}
-        </div>
-        {/* Botones acción */}
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg p-1">
-            <button onClick={downloadTemplate} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 rounded-md transition-colors" title="Descargar plantilla Excel">
-              <Download className="w-3.5 h-3.5"/> Plantilla
-            </button>
-            <div className="w-px h-5 bg-gray-200"/>
-            <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-md transition-colors">
-              <Upload className="w-3.5 h-3.5"/> Importar XLSX
-            </button>
-          </div>
-          <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleXlsx}/>
-          <button onClick={onNew} className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors">
-            <Plus className="w-4 h-4"/> Nuevo producto
-          </button>
-        </div>
-      </div>
-
-      {/* Tabla */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
-          <ShoppingBag className="w-10 h-10 text-amber-200 mx-auto mb-3"/>
-          <p className="text-gray-400 text-sm">No hay productos{filterSub !== 'todos' ? ` en ${filterSub}` : ''}{filterMarca !== 'todos' ? ` de ${filterMarca.toUpperCase()}` : ''}</p>
-          <button onClick={onNew} className="mt-4 text-sm font-semibold text-amber-800 hover:underline">+ Agregar el primero</button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Producto</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Marca</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Subcategoría</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map(p => (
-                <tr key={p.codigo} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      {p.imagen_url ? (
-                        <img src={p.imagen_url} alt="" className="w-10 h-10 object-contain rounded-lg bg-amber-50 border border-amber-100" onError={e=>e.target.style.display='none'}/>
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
-                          <ShoppingBag className="w-4 h-4 text-amber-300"/>
-                        </div>
-                      )}
-                      <div>
-                        <p className="font-semibold text-gray-800 leading-tight">{p.nombre}</p>
-                        <p className="text-xs text-gray-400 font-mono">#{p.codigo_barra||p.codigo}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${(p.marca||'').toLowerCase()==='lima' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
-                      {p.marca||'—'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 hidden sm:table-cell">
-                    <span className="text-xs text-gray-500 capitalize">{p.subcategoria||'—'}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-gray-800">
-                      {p.precio && parseFloat(p.precio) > 0 ? `$${parseFloat(p.precio).toLocaleString('es-AR')}` : <span className="text-gray-400 text-xs">Consultar</span>}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => onEdit(p)} className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"><Pencil className="w-4 h-4"/></button>
-                      <button onClick={() => onDelete(p.codigo)} className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4"/></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
-            <p className="text-xs text-gray-400">{filtered.length} producto(s)</p>
-          </div>
-        </div>
-      )}
-
-      {/* Modal confirmación XLSX */}
-      {xlsxModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={() => setXlsxModal(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <h3 className="font-bold text-gray-900 text-lg mb-1">Importar productos de moda</h3>
-            <p className="text-sm text-gray-500 mb-4">Se encontraron <strong>{xlsxModal.length} productos</strong> en el archivo.</p>
-            <div className="mb-4 rounded-xl border border-gray-100 overflow-hidden">
-              {xlsxModal.slice(0,3).map((p,i) => (
-                <div key={i} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
-                  <p className="text-sm font-semibold text-gray-800">{p.nombre}</p>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                    <span className={`text-xs font-bold ${(p.marca||'').toLowerCase()==='lima'?'text-green-600':'text-amber-700'}`}>{p.marca}</span>
-                    {p.subcategoria && <span className="text-xs text-gray-400">• {p.subcategoria}</span>}
-                    {p.precio > 0 && <span className="text-xs text-gray-400">• ${Number(p.precio).toLocaleString('es-AR')}</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-3 mb-5">
-              <button onClick={() => setXlsxMode('add')} className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left ${xlsxMode==='add'?'border-amber-600 bg-amber-50':'border-gray-200'}`}>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='add'?'border-amber-600':' border-gray-300'}`}>
-                  {xlsxMode==='add'&&<div className="w-2.5 h-2.5 rounded-full bg-amber-600"/>}
-                </div>
-                <div><p className="font-semibold text-sm">Agregar al catálogo existente</p><p className="text-xs text-gray-500 mt-0.5">Los nuevos se suman. Si el código ya existe, se actualiza.</p></div>
-              </button>
-              <button onClick={() => setXlsxMode('replace')} className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left ${xlsxMode==='replace'?'border-red-500 bg-red-50':'border-gray-200'}`}>
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5 ${xlsxMode==='replace'?'border-red-500':'border-gray-300'}`}>
-                  {xlsxMode==='replace'&&<div className="w-2.5 h-2.5 rounded-full bg-red-500"/>}
-                </div>
-                <div><p className="font-semibold text-sm">Reemplazar productos de moda</p><p className="text-xs text-gray-500 mt-0.5">⚠ Reemplaza solo CHIMOLA y LIMA, conserva los productos de farmacia.</p></div>
-              </button>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setXlsxModal(null)} className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl">Cancelar</button>
-              <button onClick={confirmImport} className={`flex-1 px-4 py-2.5 text-sm font-bold text-white rounded-xl ${xlsxMode==='replace'?'bg-red-600 hover:bg-red-700':'bg-amber-800 hover:bg-amber-900'}`}>
-                {xlsxMode==='replace'?'Reemplazar productos moda':'Agregar productos'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-
-function ChimolaProductForm({ product, onSave, onCancel }) {
-  const [form, setForm] = useState({ ...product });
-  const set = (k,v) => setForm(f => ({...f,[k]:v}));
-  return (
-    <div>
-      <button onClick={onCancel} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 mb-5 transition-colors"><ArrowLeft className="w-4 h-4"/>Volver</button>
-      <h2 className="text-lg font-bold text-gray-900 mb-1">{form._isNew ? 'Nuevo producto CHIMOLA' : 'Editar producto CHIMOLA'}</h2>
-      <p className="text-xs text-amber-700 font-semibold mb-6 flex items-center gap-1.5">
-        <span className="w-4 h-4 bg-amber-800 rounded flex items-center justify-center text-white text-[9px] font-black">C</span>
-        La marca se establece automáticamente como CHIMOLA
-      </p>
-      <div className="grid md:grid-cols-2 gap-4 bg-white rounded-xl border border-gray-200 p-6">
-        <Field label="Nombre *" col2>
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.nombre} onChange={e=>set('nombre',e.target.value)} placeholder="Cartera CHIMOLA modelo X"/>
-        </Field>
-        <Field label="Subcategoría *">
-          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.subcategoria||'carteras'} onChange={e=>set('subcategoria',e.target.value)}>
-            <option value="carteras">Carteras</option>
-            <option value="billeteras">Billeteras</option>
-            <option value="mochilas">Mochilas</option>
-            <option value="bolsos">Bolsos</option>
-            <option value="accesorios">Accesorios</option>
-          </select>
-        </Field>
-        <Field label="Precio (dejar en 0 para 'Consultar')">
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">$</span>
-            <input type="number" min="0" className="w-full border border-gray-200 rounded-lg pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-              value={form.precio} onChange={e=>set('precio',e.target.value)}/>
-          </div>
-        </Field>
-        <Field label="Stock">
-          <select className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.stock||'Disponible'} onChange={e=>set('stock',e.target.value)}>
-            <option value="Disponible">Disponible</option>
-            <option value="Sin stock">Sin stock</option>
-            <option value="Bajo stock">Bajo stock</option>
-            <option value="Por encargo">Por encargo</option>
-          </select>
-        </Field>
-        <div className="md:col-span-2">
-          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-20"/>
-        </div>
-        <Field label="Descripción" col2>
-          <textarea className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400" rows={2}
-            value={form.descripcion||''} onChange={e=>set('descripcion',e.target.value)} placeholder="Descripción del producto..."/>
-        </Field>
-        <Field label="Código interno">
-          <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
-            value={form.codigo||''} onChange={e=>set('codigo',e.target.value)} placeholder="Se genera automático"/>
-        </Field>
-        <div className="md:col-span-2">
-          <ImageField label="Imagen del producto — URL o subir desde tu PC (se sube a Cloudinary)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-20"/>
-        </div>
-      </div>
-      <div className="flex gap-3 mt-5">
-        <button onClick={onCancel} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
-        <button onClick={() => onSave(form)} className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-amber-800 hover:bg-amber-900 rounded-xl transition-colors">
-          <Save className="w-4 h-4"/> Guardar producto
-        </button>
-      </div>
     </div>
   );
 }
