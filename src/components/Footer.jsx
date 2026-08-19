@@ -112,8 +112,10 @@ export default function Footer() {
               ['inicio','Inicio'],
               ['productos','Todos los productos'],
               ['ofertas','Ofertas'],
-              ['promos','Promos bancarias'],
+              ['promos','Programas de laboratorio'],
+              ['promos-bancarias','Promos con tarjetas'],
               ['wishlist','Mis favoritos'],
+            ['chimola','CHIMOLA — Carteras y Accesorios'],
             ['obras-sociales','Obras sociales'],
             ].map(([k,l])=>(
               <li key={k}>

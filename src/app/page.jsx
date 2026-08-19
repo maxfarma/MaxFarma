@@ -14,12 +14,13 @@ import Admin from '@/components/Admin';
 import ToastContainer from '@/components/Toast';
 import WhatsAppButton from '@/components/WhatsAppButton';
 import ProgramaDescuento from '@/components/ProgramaDescuento';
+import MarcaChimola from '@/components/MarcaChimola';
 import {
   ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star,
   ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText,
   Droplets, Wind, Baby, Brush, Dumbbell, Zap, Home as HomeIcon,
   Smile, Ribbon, Users, ShoppingBag, MessageCircle, Pill, Activity,
-  AlertCircle, Building2, Search
+  AlertCircle, Building2
 } from 'lucide-react';
 
 const WA = '5493625298918';
@@ -38,11 +39,12 @@ export default function Home() {
         {state.currentSection === 'inicio'    && <Inicio />}
         {state.currentSection === 'productos' && <Productos key={state.searchQuery + '|' + state.currentCategory} />}
         {state.currentSection === 'ofertas'   && <Ofertas />}
-        {state.currentSection === 'promos'    && <Promos />}
-        {state.currentSection === 'chimola'   && <Chimola />}
+        {state.currentSection === 'promos'            && <ProgramasDescuento />}
+        {state.currentSection === 'promos-bancarias'   && <PromosBancarias />}
         {state.currentSection === 'wishlist'  && <Wishlist />}
         {state.currentSection === 'checkout'  && <Checkout />}
         {state.currentSection === 'programa'  && <ProgramaDescuento />}
+        {state.currentSection === 'chimola'   && <MarcaChimola />}
         {state.currentSection === 'admin'     && <Admin />}
         {isPagina && <PaginaEstatica slug={state.currentSection.replace('pagina-', '')} />}
       </main>
@@ -75,7 +77,7 @@ function Inicio() {
           </span>
           <div className="flex gap-2">
             {activePromos.map((p, i) => (
-              <button key={i} onClick={() => dispatch({ type:'SET_SECTION', payload:'promos' })}
+              <button key={i} onClick={() => dispatch({ type:'SET_SECTION', payload:'promos-bancarias' })}
                 className="bg-white/20 hover:bg-white/35 text-white text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
                 {p.tarjeta}: {p.descuento > 0 ? `${p.descuento}% OFF` : ''}{p.cuotas > 0 ? ` ${p.cuotas} cuotas` : ''}
               </button>
@@ -172,272 +174,8 @@ function Inicio() {
         </div>
       </div>
 
-      {/* ── Banner CHIMOLA ── */}
-      <ChimolaBanner />
-
       {/* ── Newsletter ── */}
       <Newsletter />
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════
-   BANNER CHIMOLA — en la home, lleva al catálogo
-════════════════════════════════════════════════════ */
-function ChimolaBanner() {
-  const { state, dispatch } = useStore();
-  const cfg       = state.chimolaConfig || {};
-  const titulo    = cfg.titulo    || 'Trabajamos con CHIMOLA';
-  const subtitulo = cfg.subtitulo || 'Carteras, billeteras, mochilas y accesorios de moda. Calidad y estilo en cada producto. Consultá precios mayoristas.';
-  const cta       = cfg.cta       || 'Ver catálogo CHIMOLA';
-  const imgUrl    = cfg.imagen_url || '';
-  const sinTextura = cfg.sin_textura === 'SI';
-  const sinOverlay = cfg.sin_overlay === 'SI';
-  const imgOpacity = parseInt(cfg.img_opacity || 30) / 100;
-  if (cfg.visible === 'NO') return null;
-  return (
-    <div className="max-w-7xl mx-auto px-4 mt-10">
-      <button onClick={() => dispatch({ type:'SET_SECTION', payload:'chimola' })} className="w-full text-left group">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-900 via-amber-800 to-yellow-700 shadow-xl">
-          {imgUrl && (
-            <>
-              <img src={imgUrl} alt="" className="absolute inset-0 w-full h-full object-cover" style={{opacity: imgOpacity}} onError={e=>e.target.style.display='none'}/>
-              {!sinOverlay && <div className="absolute inset-0 bg-gradient-to-r from-amber-900/80 to-amber-800/40" />}
-            </>
-          )}
-          {!sinTextura && (
-            <div className="absolute inset-0 opacity-10 pointer-events-none"
-              style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 14px)' }} />
-          )}
-          <div className="absolute -right-10 -top-10 w-48 h-48 rounded-full bg-yellow-500/20 pointer-events-none" />
-          <div className="absolute -left-6 -bottom-6 w-32 h-32 rounded-full bg-amber-600/30 pointer-events-none" />
-          <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-stretch gap-0">
-            <div className="flex-1 px-7 py-8 sm:py-10">
-              <span className="inline-block text-amber-300 text-[11px] font-black uppercase tracking-[0.18em] mb-3 border border-amber-400/40 rounded-full px-3 py-1">Moda & Accesorios</span>
-              <h2 className="text-white text-3xl sm:text-4xl font-black leading-tight mb-3 tracking-tight">{titulo}</h2>
-              <p className="text-amber-100/80 text-sm sm:text-base leading-relaxed mb-6 max-w-md">{subtitulo}</p>
-              <div className="flex flex-wrap gap-2 mb-6">
-                {['Carteras','Billeteras','Mochilas','Bolsos','Accesorios'].map(t => (
-                  <span key={t} className="text-xs font-semibold text-amber-200 bg-white/10 border border-white/15 px-3 py-1 rounded-full">{t}</span>
-                ))}
-              </div>
-              <span className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold text-sm px-6 py-3 rounded-xl shadow-lg group-hover:bg-amber-50 transition-colors">
-                {cta} <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </span>
-            </div>
-            <div className="hidden sm:flex flex-col justify-center items-center gap-3 px-8 border-l border-white/10">
-              <div className="w-28 h-28 rounded-2xl bg-white border-2 border-white/30 flex items-center justify-center shadow-xl overflow-hidden p-2">
-                <img src="https://scontent-eze1-2.xx.fbcdn.net/v/t39.30808-6/348444665_3041693429459883_3109437929373028317_n.jpg?stp=dst-jpg_tt6&cstp=mx1952x1952&ctp=s1952x1952&_nc_cat=108&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=WfGNpFxIUrYQ7kNvwE5gWuV&_nc_oc=Adr09mHhValgADM3-GeKkwWEN7Eud2XnsOwfbeko99YFhLb_iVmBkjnxR_l_v4nuSU8&_nc_zt=23&_nc_ht=scontent-eze1-2.xx&_nc_gid=ZoeKRQ7UIdtyS_YDGR46Tg&_nc_ss=7b289&oh=00_Af8Q-35IqKyHaOY7Y-55NI1twBnfU1Vyg_fVnTBwaygafg&oe=6A461E97" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
-                <span style={{display:'none'}} className="text-amber-900 font-black text-2xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
-              </div>
-              <span className="text-amber-300 text-xs font-bold uppercase tracking-widest mt-1">Marca exclusiva</span>
-              <div className="flex items-center gap-1.5 bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                <MessageCircle className="w-3.5 h-3.5" /> Precio mayorista
-              </div>
-            </div>
-          </div>
-        </div>
-      </button>
-    </div>
-  );
-}
-
-/* ════════════════════════════════════════════════════
-   SECCIÓN CHIMOLA — catálogo completo
-════════════════════════════════════════════════════ */
-const CHIMOLA_SUBCATS = [
-  { key:'todos',      label:'Todo CHIMOLA'  },
-  { key:'carteras',   label:'Carteras'      },
-  { key:'billeteras', label:'Billeteras'    },
-  { key:'mochilas',   label:'Mochilas'      },
-  { key:'bolsos',     label:'Bolsos'        },
-  { key:'accesorios', label:'Accesorios'    },
-];
-
-function Chimola() {
-  const { state, dispatch } = useStore();
-  const [subcat, setSubcat]   = useState('todos');
-  const [marca, setMarca]     = useState('todas');
-  const [query,  setQuery]    = useState('');
-
-  const chimola = useMemo(() => {
-    let list = state.products.filter(
-      p => ['chimola','lima'].includes((p.marca || '').toLowerCase())
-    );
-    if (marca !== 'todas') {
-      list = list.filter(p => (p.marca || '').toLowerCase() === marca);
-    }
-    if (subcat !== 'todos') {
-      list = list.filter(p =>
-        (p.categoria    || '').toLowerCase() === subcat ||
-        (p.subcategoria || '').toLowerCase() === subcat ||
-        (p.nombre       || '').toLowerCase().includes(subcat)
-      );
-    }
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      list = list.filter(p =>
-        (p.nombre      || '').toLowerCase().includes(q) ||
-        (p.descripcion || '').toLowerCase().includes(q)
-      );
-    }
-    return list;
-  }, [state.products, subcat, marca, query]);
-
-  const waMsg = encodeURIComponent('¡Hola! Quiero consultar precios mayoristas de productos CHIMOLA.');
-
-  return (
-    <div className="pb-20">
-      {/* Hero */}
-      <div className="relative bg-gradient-to-br from-amber-900 via-amber-800 to-amber-700 overflow-hidden">
-        <div className="absolute inset-0 opacity-10 pointer-events-none"
-          style={{ backgroundImage:'repeating-linear-gradient(45deg,#fff 0px,#fff 1px,transparent 1px,transparent 12px)' }} />
-        <div className="relative max-w-5xl mx-auto px-4 py-10 sm:py-14 flex flex-col sm:flex-row items-center sm:items-start gap-6">
-          <div className="w-20 h-20 flex-shrink-0 bg-white border-2 border-white/30 rounded-2xl flex items-center justify-center shadow-xl overflow-hidden p-1.5">
-            <img src="https://res.cloudinary.com/dximjpxq7/image/upload/chimola_logo" alt="Chimola" className="w-full h-full object-contain" onError={e=>{e.target.style.display='none';e.target.nextSibling.style.display='flex';}} />
-            <span style={{display:'none'}} className="text-amber-900 font-black text-xl tracking-tighter leading-none text-center">CHI<br/>MOLA</span>
-          </div>
-          <div className="text-center sm:text-left">
-            <p className="text-amber-300 text-[11px] font-black uppercase tracking-widest mb-1">Catálogo</p>
-            <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight mb-2">CHIMOLA <span className="text-amber-300">&amp;</span> LIMA</h1>
-            <p className="text-amber-100/80 text-sm max-w-md mb-4">
-              Carteras, billeteras, mochilas y accesorios de moda con calidad y estilo.
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
-              <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-sm px-5 py-2.5 rounded-xl shadow-lg transition-colors">
-                <MessageCircle className="w-4 h-4" /> Consultar precio mayorista
-              </a>
-              <button onClick={() => dispatch({ type:'SET_SECTION', payload:'inicio' })}
-                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors">
-                <ArrowLeft className="w-4 h-4" /> Volver al inicio
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Aviso mayorista */}
-      <div className="bg-amber-50 border-b border-amber-200">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3 flex-wrap">
-          <span className="text-amber-700 font-bold text-xs uppercase tracking-wide">💼 Venta mayorista disponible</span>
-          <span className="text-amber-600 text-xs">Consultá precios especiales por mayor por WhatsApp.</span>
-          <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
-            className="ml-auto text-xs font-bold text-green-600 hover:underline flex items-center gap-1">
-            Consultar <ChevronRight className="w-3.5 h-3.5" />
-          </a>
-        </div>
-      </div>
-
-      {/* Filtro de marca */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-2">
-          {[['todas','Todas las marcas'],['chimola','CHIMOLA'],['lima','LIMA']].map(([k,l]) => (
-            <button key={k} onClick={() => setMarca(k)}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                marca === k
-                  ? k === 'lima' ? 'bg-green-700 text-white border-green-700' : k === 'chimola' ? 'bg-amber-800 text-white border-amber-800' : 'bg-gray-800 text-white border-gray-800'
-                  : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-              }`}>
-              {l}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-2.5">
-            {CHIMOLA_SUBCATS.map(s => (
-              <button key={s.key} onClick={() => setSubcat(s.key)}
-                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                  subcat === s.key
-                    ? 'bg-amber-800 text-white border-amber-800 shadow-sm'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400 hover:text-amber-800'
-                }`}>
-                {s.label}
-              </button>
-            ))}
-            <div className="relative ml-auto flex-shrink-0">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-              <input type="text" placeholder="Buscar..." value={query} onChange={e => setQuery(e.target.value)}
-                className="pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-full focus:outline-none focus:ring-2 focus:ring-amber-400 w-32 sm:w-44" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Catálogo */}
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        {chimola.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mb-5">
-              <ShoppingBag className="w-9 h-9 text-amber-400" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-700 mb-2">
-              {query ? `Sin resultados para "${query}"` : 'Próximamente el catálogo CHIMOLA'}
-            </h3>
-            <p className="text-sm text-gray-400 max-w-xs mb-6">
-              Estamos cargando los productos. Mientras tanto consultá disponibilidad y precios por WhatsApp.
-            </p>
-            <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-md transition-colors">
-              <MessageCircle className="w-4 h-4" /> Consultar por WhatsApp
-            </a>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm font-semibold text-gray-400 mb-5">
-              {chimola.length} producto{chimola.length !== 1 ? 's' : ''}
-              {subcat !== 'todos' ? ` en ${CHIMOLA_SUBCATS.find(s=>s.key===subcat)?.label}` : ''}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {chimola.map(p => (
-                <ChimolaCard key={p.codigo} product={p} waMsg={waMsg} />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ChimolaCard({ product, waMsg }) {
-  const { dispatch } = useStore();
-  const marca = (product.marca || 'CHIMOLA').toUpperCase();
-  const isLima = marca === 'LIMA';
-  return (
-    <div onClick={() => dispatch({ type:'OPEN_PRODUCT_MODAL', payload:product })}
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden group">
-      <div className={`relative aspect-square overflow-hidden ${isLima ? 'bg-green-50' : 'bg-amber-50'}`}>
-        {product.imagen_url ? (
-          <img src={product.imagen_url} alt={product.nombre}
-            className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-300" loading="lazy" />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-            <ShoppingBag className={`w-10 h-10 ${isLima ? 'text-green-300' : 'text-amber-300'}`} />
-            <span className={`text-[10px] font-semibold ${isLima ? 'text-green-500' : 'text-amber-400'}`}>{marca}</span>
-          </div>
-        )}
-        <span className={`absolute top-2 left-2 text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-white ${isLima ? 'bg-green-700' : 'bg-amber-800'}`}>
-          {marca}
-        </span>
-      </div>
-      <div className="p-3">
-        <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 leading-snug mb-3 mt-1">{product.nombre}</h3>
-        {product.precio && parseFloat(product.precio) > 0 ? (
-          <p className="text-base font-bold text-gray-900 mb-2">${formatPrice(parseFloat(product.precio))}</p>
-        ) : (
-          <p className={`text-xs font-semibold mb-2 ${isLima ? 'text-green-700' : 'text-amber-700'}`}>Consultá el precio</p>
-        )}
-        <a href={`https://wa.me/${WA}?text=${waMsg}`} target="_blank" rel="noopener noreferrer"
-          onClick={e => e.stopPropagation()}
-          className="w-full flex items-center justify-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-bold py-2 rounded-xl transition-colors">
-          <MessageCircle className="w-3.5 h-3.5" /> Consultar precio mayor
-        </a>
-      </div>
     </div>
   );
 }
@@ -813,51 +551,125 @@ function Ofertas() {
 }
 
 /* ════════════════════════════════════════════════════
-   PROMOS
+   PROGRAMAS DE DESCUENTO DE LABORATORIOS
 ════════════════════════════════════════════════════ */
-function Promos() {
+function ProgramasDescuento() {
   const { state, dispatch } = useStore();
-  const active   = state.promos.filter(p => (p.activa||'SI').toUpperCase() === 'SI');
   const programas = (state.programas||[]).filter(p => (p.activo||'SI').toUpperCase() === 'SI');
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
+      {/* Header */}
       <div className="mb-8">
-        <h1 className="section-title flex items-center gap-2">
-          <CreditCard className="w-6 h-6 text-[#C8102E]" /> Promociones y programas
-        </h1>
-        <p className="text-gray-400 mt-1">Descuentos bancarios y programas de laboratorios</p>
-      </div>
-
-      {/* Programas de descuento */}
-      {programas.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Programas de descuento</h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {programas.map((prog, i) => (
-              <button key={i}
-                onClick={() => dispatch({ type:'SET_PROGRAMA', payload:prog })}
-                className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all p-5 text-left group">
-                {prog.imagen_url && (
-                  <img src={prog.imagen_url} alt={prog.nombre} className="w-12 h-12 object-contain rounded-xl flex-shrink-0"
-                    onError={e => e.target.style.display='none'} />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 group-hover:text-[#C8102E] transition-colors">{prog.nombre}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{prog.descripcion}</p>
-                  <p className="text-xs text-[#C8102E] font-semibold mt-1">{(prog.productos||[]).length} producto(s) con descuento</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#C8102E] transition-colors flex-shrink-0" />
-              </button>
-            ))}
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="section-title">Programas de descuento</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Descuentos exclusivos de laboratorios — Andrómaco, Roemmers y más</p>
           </div>
         </div>
-      )}
 
-      {/* Promos bancarias */}
-      <h2 className="text-lg font-bold text-gray-900 mb-4">Promociones bancarias</h2>
+        {/* Link a promos bancarias */}
+        <div className="mt-4 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-blue-700">
+            ¿Buscás descuentos con tarjetas bancarias?
+          </p>
+          <button
+            onClick={() => dispatch({ type:'SET_SECTION', payload:'promos-bancarias' })}
+            className="flex items-center gap-1.5 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors">
+            Ver promos bancarias <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {programas.length === 0 ? (
+        <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
+          <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-purple-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+          </div>
+          <p className="font-semibold text-gray-700 mb-1">Próximamente</p>
+          <p className="text-sm text-gray-400">Estamos cargando los programas de descuento de laboratorios</p>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {programas.map((prog, i) => (
+            <button key={i}
+              onClick={() => dispatch({ type:'SET_PROGRAMA', payload:prog })}
+              className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg hover:border-purple-200 transition-all p-5 text-left group">
+              {/* Logo laboratorio */}
+              <div className="w-14 h-14 rounded-xl flex-shrink-0 overflow-hidden border border-gray-100 flex items-center justify-center"
+                style={{ background: prog.color ? prog.color + '15' : '#f3f4f6' }}>
+                {prog.imagen_url
+                  ? <img src={prog.imagen_url} alt={prog.nombre} className="w-full h-full object-contain p-1.5" onError={e => e.target.style.display='none'} />
+                  : <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: prog.color || '#C8102E' }}>
+                      <span className="text-white font-black text-sm">{prog.nombre.charAt(0)}</span>
+                    </div>
+                }
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 group-hover:text-[#C8102E] transition-colors text-base leading-tight">{prog.nombre}</p>
+                {prog.descripcion && <p className="text-xs text-gray-500 mt-1 line-clamp-2 leading-relaxed">{prog.descripcion}</p>}
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-xs font-semibold text-[#C8102E] bg-[#FFF0F3] px-2 py-0.5 rounded-full">
+                    {(prog.productos||[]).length} producto(s) con descuento
+                  </span>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-[#C8102E] transition-colors flex-shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════
+   PROMOS BANCARIAS
+════════════════════════════════════════════════════ */
+function PromosBancarias() {
+  const { state, dispatch } = useStore();
+  const active = state.promos.filter(p => (p.activa||'SI').toUpperCase() === 'SI');
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-10">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+            <CreditCard className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h1 className="section-title">Promociones bancarias</h1>
+            <p className="text-gray-400 text-sm mt-0.5">Descuentos y cuotas con tus tarjetas favoritas</p>
+          </div>
+        </div>
+
+        {/* Link a programas de laboratorio */}
+        <div className="mt-4 bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-purple-700">
+            ¿Buscás descuentos de laboratorios como Andrómaco o Roemmers?
+          </p>
+          <button
+            onClick={() => dispatch({ type:'SET_SECTION', payload:'promos' })}
+            className="flex items-center gap-1.5 text-sm font-semibold text-purple-700 hover:text-purple-900 transition-colors whitespace-nowrap">
+            Ver programas <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
       {active.length === 0 ? (
-        <p className="text-center text-gray-400 py-16">Sin promociones vigentes</p>
+        <div className="text-center py-24 bg-white rounded-2xl border border-gray-100">
+          <CreditCard className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+          <p className="font-semibold text-gray-700">Sin promociones bancarias vigentes</p>
+          <p className="text-sm text-gray-400 mt-1">Consultanos por WhatsApp para más información</p>
+        </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {active.map((p, i) => (
@@ -869,10 +681,15 @@ function Promos() {
                     : <CreditCard className="w-6 h-6 text-[#C8102E]" />}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 text-lg">{p.tarjeta}
+                  <h3 className="font-bold text-gray-900 text-lg leading-tight">
+                    {p.tarjeta}
                     <span className="text-gray-400 font-normal text-sm ml-2">{p.tipo}</span>
                   </h3>
-                  {p.dia && <span className="text-xs bg-[#FFF0F3] text-[#C8102E] font-semibold px-2 py-0.5 rounded-full inline-block mt-1">{p.dia}</span>}
+                  {p.dia && (
+                    <span className="text-xs bg-[#FFF0F3] text-[#C8102E] font-semibold px-2 py-0.5 rounded-full inline-block mt-1">
+                      {p.dia}
+                    </span>
+                  )}
                   <div className="mt-3">
                     {p.descuento > 0 && <p className="text-3xl font-black text-[#C8102E]">{p.descuento}% OFF</p>}
                     {p.cuotas > 0 && <p className="text-lg font-bold text-gray-700">{p.cuotas} cuotas sin interés</p>}

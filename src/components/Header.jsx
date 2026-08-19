@@ -33,6 +33,7 @@ export default function Header() {
   const { state, dispatch } = useStore();
   const [mobileOpen, setMobileOpen]       = useState(false);
   const [megaOpen, setMegaOpen]           = useState(false);
+  const [promosOpen, setPromosOpen]       = useState(false);
   const [scrolled, setScrolled]           = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [query, setQuery]                 = useState('');
@@ -73,6 +74,7 @@ export default function Header() {
     dispatch({ type:'SET_SECTION', payload:section });
     setMobileOpen(false);
     setMegaOpen(false);
+    setPromosOpen(false);
   };
 
   const handleSearch = useCallback((val) => {
@@ -238,7 +240,7 @@ export default function Header() {
 
           {/* ── Nav desktop ── */}
           <nav className="hidden lg:flex items-center gap-0.5">
-            {[['inicio','Inicio'],['productos','Productos'],['ofertas','Ofertas'],['promos','Promos']].map(([k,l]) => (
+            {[['inicio','Inicio'],['productos','Productos'],['ofertas','Ofertas']].map(([k,l]) => (
               <button key={k} onClick={() => navTo(k)}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   state.currentSection === k
@@ -248,15 +250,82 @@ export default function Header() {
                 {l}
               </button>
             ))}
-            {/* CHIMOLA — sección dentro del sitio */}
-            <button
-              onClick={() => navTo('chimola')}
-              className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors border ml-1 ${
+
+            {/* ── Dropdown Promos ── */}
+            <div className="relative" onMouseLeave={() => setPromosOpen(false)}>
+              <button
+                onMouseEnter={() => setPromosOpen(true)}
+                onClick={() => setPromosOpen(o => !o)}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  ['promos','programas-laboratorio'].includes(state.currentSection)
+                    ? 'text-[#C8102E] bg-[#FFF0F3]'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}>
+                Promos
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${promosOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {promosOpen && (
+                <div
+                  className="absolute top-full left-0 mt-1 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 py-2 z-50"
+                  onMouseEnter={() => setPromosOpen(true)}>
+
+                  {/* Programas de descuento laboratorios */}
+                  <div className="px-3 pt-1 pb-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1.5">
+                      Programas de laboratorio
+                    </p>
+                    <button
+                      onClick={() => navTo('promos')}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#FFF0F3] text-left transition-colors group">
+                      <div className="w-8 h-8 rounded-lg bg-purple-100 group-hover:bg-purple-600 flex items-center justify-center transition-colors flex-shrink-0">
+                        <svg className="w-4 h-4 text-purple-600 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 group-hover:text-[#C8102E] transition-colors">
+                          Programas de descuento
+                        </p>
+                        <p className="text-xs text-gray-400">Andrómaco, Roemmers y más</p>
+                      </div>
+                    </button>
+                  </div>
+
+                  <div className="mx-3 border-t border-gray-100 my-1" />
+
+                  {/* Promos bancarias */}
+                  <div className="px-3 pt-2 pb-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 mb-1.5">
+                      Promociones bancarias
+                    </p>
+                    <button
+                      onClick={() => navTo('promos-bancarias')}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#FFF0F3] text-left transition-colors group">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 group-hover:bg-blue-600 flex items-center justify-center transition-colors flex-shrink-0">
+                        <svg className="w-4 h-4 text-blue-600 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800 group-hover:text-[#C8102E] transition-colors">
+                          Promos con tarjetas
+                        </p>
+                        <p className="text-xs text-gray-400">Visa, Mastercard, Go Cuotas y más</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* CHIMOLA — marca especial */}
+            <button onClick={() => navTo('chimola')}
+              className={`px-3 py-2 rounded-lg text-sm font-bold transition-colors ${
                 state.currentSection === 'chimola'
-                  ? 'bg-amber-800 text-white border-amber-800'
-                  : 'text-amber-800 border-amber-200 hover:bg-amber-50 hover:border-amber-400'
-              }`}
-            >
+                  ? 'text-amber-600 bg-amber-50'
+                  : 'text-amber-600 hover:bg-amber-50'
+              }`}>
               CHIMOLA
             </button>
           </nav>
@@ -305,7 +374,8 @@ export default function Header() {
                 ['inicio',   'Inicio'],
                 ['productos','Productos'],
                 ['ofertas',  'Ofertas'],
-                ['promos',   'Promos Bancarias'],
+                ['promos',             'Programas de laboratorio'],
+              ['promos-bancarias',   'Promos con tarjetas'],
                 ['wishlist', '❤️ Favoritos'],
               ].map(([k,l]) => (
                 <button key={k} onClick={() => navTo(k)}
@@ -313,14 +383,6 @@ export default function Header() {
                   {l}
                 </button>
               ))}
-              {/* CHIMOLA */}
-              <button
-                onClick={() => navTo('chimola')}
-                className="text-left px-3 py-2.5 rounded-lg text-sm font-bold text-amber-800 hover:bg-amber-50 border border-amber-200 flex items-center gap-2"
-              >
-                <ShoppingBag className="w-4 h-4 text-amber-600" />
-                CHIMOLA — Carteras & Accesorios
-              </button>
             </div>
             <div className="border-t border-gray-100 pt-3">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-3 mb-2">Categorías</p>
