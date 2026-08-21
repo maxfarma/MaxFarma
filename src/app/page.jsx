@@ -304,18 +304,20 @@ function ChimolaBanner() {
             </div>
           </div>
 
-          {/* Cards laterales — solo desktop */}
+          {/* Cards laterales — solo desktop, íconos SVG estilo Lucide */}
           <div className="hidden sm:flex flex-col gap-3 flex-shrink-0">
             {[
-              { label:'Carteras',   emoji:'👜' },
-              { label:'Billeteras', emoji:'💼' },
-              { label:'Mochilas',   emoji:'🎒' },
-              { label:'Accesorios', emoji:'✨' },
+              { label:'Carteras',   icon:<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg> },
+              { label:'Billeteras', icon:<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg> },
+              { label:'Mochilas',   icon:<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg> },
+              { label:'Accesorios', icon:<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg> },
             ].map((c, i) => (
               <button key={i}
                 onClick={() => dispatch({ type:'SET_SECTION', payload:'chimola' })}
-                className="flex items-center gap-2.5 bg-white/5 hover:bg-white/15 border border-white/10 rounded-xl px-4 py-2.5 transition-colors text-left">
-                <span className="text-xl">{c.emoji}</span>
+                className="flex items-center gap-2.5 bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/30 rounded-xl px-4 py-2.5 transition-all text-left group">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 group-hover:bg-amber-500 flex items-center justify-center transition-colors text-amber-400 group-hover:text-white flex-shrink-0">
+                  {c.icon}
+                </div>
                 <span className="text-white text-sm font-semibold">{c.label}</span>
               </button>
             ))}
