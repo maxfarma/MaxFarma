@@ -115,6 +115,7 @@ export default function Footer() {
               ['promos','Programas de laboratorio'],
               ['promos-bancarias','Promos con tarjetas'],
               ['wishlist','Mis favoritos'],
+            ['quienes-somos','Quiénes somos'],
             ['chimola','CHIMOLA — Carteras y Accesorios'],
             ['obras-sociales','Obras sociales'],
             ].map(([k,l])=>(
