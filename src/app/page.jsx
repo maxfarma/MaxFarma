@@ -72,17 +72,22 @@ function Inicio() {
 
       {/* ── Promo strip ── */}
       {activePromos.length > 0 && (
-        <div className="mx-3 sm:mx-4 mt-3 bg-[#C8102E] rounded-xl px-4 py-3 flex items-center gap-3 overflow-x-auto scrollbar-none">
-          <span className="text-white font-bold text-xs whitespace-nowrap flex items-center gap-1.5">
-            <Flame className="w-3.5 h-3.5" /> Beneficios:
-          </span>
-          <div className="flex gap-2">
-            {activePromos.map((p, i) => (
-              <button key={i} onClick={() => dispatch({ type:'SET_SECTION', payload:'promos-bancarias' })}
-                className="bg-white/20 hover:bg-white/35 text-white text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors">
-                {p.tarjeta}: {p.descuento > 0 ? `${p.descuento}% OFF` : ''}{p.cuotas > 0 ? ` ${p.cuotas} cuotas` : ''}
-              </button>
-            ))}
+        <div className="mx-3 sm:mx-4 mt-3 rounded-xl overflow-hidden">
+          <div className="bg-gradient-to-r from-[#C8102E] to-[#9B0D22] px-4 py-3 flex items-center gap-3 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Flame className="w-3.5 h-3.5 text-amber-300" />
+              <span className="text-white font-bold text-xs whitespace-nowrap">Beneficios exclusivos:</span>
+            </div>
+            <div className="w-px h-4 bg-white/20 flex-shrink-0" />
+            <div className="flex gap-2">
+              {activePromos.map((p, i) => (
+                <button key={i} onClick={() => dispatch({ type:'SET_SECTION', payload:'promos-bancarias' })}
+                  className="flex items-center gap-1.5 bg-white/15 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all border border-white/10 hover:border-white/30">
+                  <CreditCard className="w-3 h-3" />
+                  {p.tarjeta}: {p.descuento > 0 ? `${p.descuento}% OFF` : ''}{p.cuotas > 0 ? ` · ${p.cuotas} cuotas` : ''}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -91,16 +96,17 @@ function Inicio() {
       <div className="max-w-7xl mx-auto px-4 mt-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { icon:<Truck className="w-5 h-5"/>,       title:'Envío a domicilio',      sub:'En tu zona' },
-            { icon:<Shield className="w-5 h-5"/>,       title:'Compra 100% segura',     sub:'Datos protegidos' },
-            { icon:<CreditCard className="w-5 h-5"/>,   title:'Go Cuotas — 4 cuotas',   sub:'Sin interés con débito' },
-            { icon:<Phone className="w-5 h-5"/>,        title:'Atención personalizada',  sub:'Lun–Sáb 9–21 hs' },
+            { icon:<Truck className="w-5 h-5"/>,       title:'Envío a domicilio',     sub:'En tu zona',              color:'text-blue-600',   bg:'bg-blue-50' },
+            { icon:<Shield className="w-5 h-5"/>,      title:'Compra 100% segura',    sub:'Datos protegidos',        color:'text-green-600',  bg:'bg-green-50' },
+            { icon:<CreditCard className="w-5 h-5"/>,  title:'4 cuotas sin interés',  sub:'Con Visa, MC y Go Cuotas',color:'text-[#C8102E]',  bg:'bg-[#FFF0F3]' },
+            { icon:<Phone className="w-5 h-5"/>,       title:'Atención personalizada',sub:'Lun–Sáb 9–21 hs',         color:'text-purple-600', bg:'bg-purple-50' },
           ].map((b, i) => (
-            <div key={i} className="bg-white rounded-xl p-4 flex items-center gap-3 border border-gray-100 shadow-sm">
-              <div className="w-9 h-9 rounded-lg bg-[#FFF0F3] flex items-center justify-center text-[#C8102E] flex-shrink-0">{b.icon}</div>
+            <div key={i} className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 animate-fade-up"
+              style={{ animationDelay: `${i * 0.08}s` }}>
+              <div className={`w-11 h-11 rounded-xl ${b.bg} flex items-center justify-center ${b.color} flex-shrink-0`}>{b.icon}</div>
               <div>
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{b.title}</p>
-                <p className="text-xs text-gray-400">{b.sub}</p>
+                <p className="text-sm font-bold text-gray-900 leading-tight">{b.title}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{b.sub}</p>
               </div>
             </div>
           ))}
@@ -109,6 +115,26 @@ function Inicio() {
 
       {/* ── Banner medicamentos especiales ── */}
       <MedicamentosBanner />
+
+      {/* ── Stats farmacia ── */}
+      <div className="max-w-7xl mx-auto px-4 mt-10">
+        <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl px-6 py-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+            {[
+              { val:'+15',   label:'Años de experiencia',    sub:'En el sector farmacéutico' },
+              { val:'+2000', label:'Productos disponibles',  sub:'Actualizado constantemente' },
+              { val:'100%',  label:'Farmacia habilitada',    sub:'Disposición ANMAT' },
+              { val:'24/7',  label:'Consultas WhatsApp',     sub:'Te respondemos rápido' },
+            ].map((s, i) => (
+              <div key={i} className="group">
+                <p className="text-3xl sm:text-4xl font-black text-white tracking-tight">{s.val}</p>
+                <p className="text-sm font-semibold text-amber-400 mt-1">{s.label}</p>
+                <p className="text-xs text-gray-500 mt-0.5 hidden sm:block">{s.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* ── Categorías visuales ── */}
       <div className="max-w-7xl mx-auto px-4 mt-12">
@@ -357,22 +383,25 @@ function CategoriaGrid() {
 
   return (
     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 mt-5">
-      {cats.map((cat) => {
+      {cats.map((cat, i) => {
         const isActive = state.currentCategory === cat.key;
         const icon = getCatIcon(cat.key);
         return (
           <button key={cat.key}
             onClick={() => dispatch({ type:'SET_CATEGORY', payload:cat.key })}
-            className={`group flex flex-col items-center gap-2.5 rounded-2xl p-4 border transition-all duration-200
+            className={`group flex flex-col items-center gap-2.5 rounded-2xl p-4 border transition-all duration-200 animate-fade-up
               ${isActive
-                ? 'border-[#C8102E] bg-[#FFF0F3] shadow-sm'
-                : 'border-gray-100 bg-white hover:border-[#C8102E] hover:bg-[#FFF0F3] hover:shadow-sm'}`}>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors
-              ${isActive ? 'bg-[#C8102E] text-white' : 'bg-gray-50 text-gray-500 group-hover:bg-[#C8102E] group-hover:text-white'}`}>
+                ? 'border-[#C8102E] bg-[#FFF0F3] shadow-md scale-[1.02]'
+                : 'border-gray-100 bg-white hover:border-[#C8102E]/50 hover:bg-[#FFF9F9] hover:shadow-sm hover:-translate-y-0.5'}`}
+            style={{ animationDelay: `${i * 0.04}s` }}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200
+              ${isActive
+                ? 'bg-[#C8102E] text-white shadow-sm'
+                : 'bg-gray-50 text-gray-400 group-hover:bg-[#C8102E] group-hover:text-white group-hover:shadow-sm'}`}>
               {icon}
             </div>
-            <span className={`text-xs font-semibold text-center leading-tight transition-colors
-              ${isActive ? 'text-[#C8102E]' : 'text-gray-600 group-hover:text-[#C8102E]'}`}>
+            <span className={`text-xs font-bold text-center leading-tight transition-colors
+              ${isActive ? 'text-[#C8102E]' : 'text-gray-500 group-hover:text-[#C8102E]'}`}>
               {cat.label}
             </span>
           </button>
@@ -414,15 +443,19 @@ function Newsletter() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 mt-14">
-      <div className="bg-gradient-to-br from-[#C8102E] to-[#7A0019] rounded-2xl px-8 py-10 text-center relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-white -translate-y-32" />
-          <div className="absolute bottom-0 right-1/4 w-48 h-48 rounded-full bg-white translate-y-24" />
+      <div className="bg-gradient-to-br from-[#C8102E] via-[#A50E26] to-[#7A0019] rounded-2xl px-8 py-12 text-center relative overflow-hidden">
+        {/* Decoración */}
+        <div className="absolute inset-0 opacity-[0.07] pointer-events-none">
+          <div className="absolute top-0 left-0 w-72 h-72 rounded-full bg-white -translate-x-20 -translate-y-20" />
+          <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-white translate-x-16 translate-y-16" />
+          <div className="absolute top-1/2 left-1/2 w-96 h-96 rounded-full bg-white -translate-x-1/2 -translate-y-1/2" />
         </div>
         <div className="relative z-10">
-          <p className="text-white/70 text-sm font-semibold uppercase tracking-widest mb-2">Newsletter</p>
-          <h3 className="text-white text-2xl font-black mb-2">Recibí promociones exclusivas</h3>
-          <p className="text-white/70 mb-6 text-sm">Suscribite y enterate de todas las ofertas antes que nadie</p>
+          <div className="inline-flex items-center gap-2 bg-white/15 border border-white/20 text-white/80 text-xs font-bold px-4 py-1.5 rounded-full mb-4 uppercase tracking-widest">
+            <Sparkles className="w-3.5 h-3.5" /> Newsletter exclusivo
+          </div>
+          <h3 className="text-white text-3xl sm:text-4xl font-black mb-2 tracking-tight">Ofertas antes que nadie</h3>
+          <p className="text-white/60 mb-7 text-sm max-w-md mx-auto">Suscribite gratis y recibí descuentos exclusivos, novedades y promociones bancarias directamente en tu email.</p>
           {status === 'ok' ? (
             <div className="flex items-center justify-center gap-2 bg-white/20 text-white font-semibold px-6 py-3 rounded-xl max-w-md mx-auto">
               ✓ ¡Gracias! Te suscribiste correctamente.
@@ -452,18 +485,30 @@ function Newsletter() {
 function SectionHeader({ title, sub, badge, link, icon }) {
   const { dispatch } = useStore();
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-start justify-between mb-1">
       <div>
-        <div className="flex items-center gap-2">
-          {icon}
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">{title}</h2>
-          {badge && <span className="text-xs font-bold bg-[#C8102E] text-white px-2 py-0.5 rounded-full animate-pulse">{badge}</span>}
+        <div className="flex items-center gap-2.5">
+          {icon && (
+            <div className="w-9 h-9 rounded-xl bg-[#FFF0F3] flex items-center justify-center text-[#C8102E] flex-shrink-0">
+              {icon}
+            </div>
+          )}
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">{title}</h2>
+              {badge && (
+                <span className="text-xs font-bold bg-[#C8102E] text-white px-2.5 py-1 rounded-full animate-pulse">
+                  {badge}
+                </span>
+              )}
+            </div>
+            {sub && <p className="text-sm text-gray-400 mt-0.5">{sub}</p>}
+          </div>
         </div>
-        {sub && <p className="text-sm text-gray-400 mt-0.5">{sub}</p>}
       </div>
       {link && (
         <button onClick={() => dispatch({ type:'SET_SECTION', payload:link.section })}
-          className="flex items-center gap-1 text-sm text-[#C8102E] font-semibold hover:underline whitespace-nowrap">
+          className="flex items-center gap-1 text-sm text-[#C8102E] font-semibold hover:gap-2 transition-all whitespace-nowrap mt-1">
           {link.label} <ChevronRight className="w-4 h-4" />
         </button>
       )}
