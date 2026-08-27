@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X, Tag, Sparkles, Loader2 } from 'lucide-react';
+import { X, Tag, Loader2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useStore } from '@/lib/store';
@@ -73,7 +73,7 @@ export default function PopupDescuento() {
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="px-8 pt-10 pb-12 text-center relative overflow-hidden"
+        <div className="px-8 pt-10 pb-8 text-center relative overflow-hidden"
           style={{ background:`linear-gradient(135deg, ${cfg.color}, #7A0019)` }}>
           {/* Decoración */}
           <div className="absolute inset-0 opacity-10 pointer-events-none">
@@ -93,26 +93,26 @@ export default function PopupDescuento() {
               <img src={cfg.imagen_url} alt="" className="w-20 h-20 object-contain mx-auto mb-4 rounded-2xl"
                 onError={e => e.target.style.display='none'} />
             ) : (
-              <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
-                <Tag className="w-8 h-8 text-white" />
+              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center mx-auto mb-4">
+                <Tag className="w-7 h-7 text-white" />
               </div>
             )}
-            <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Oferta exclusiva</p>
-            <h2 className="text-white text-3xl font-black tracking-tight leading-none mb-1">
+            <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-2">Oferta exclusiva</p>
+            <h2 className="text-white text-4xl font-black tracking-tight leading-none mb-2">
               {cfg.descuento}
             </h2>
-            <p className="text-white/80 text-sm">{cfg.titulo}</p>
+            <p className="text-white/80 text-sm mb-4">{cfg.titulo}</p>
+            {/* Badge — dentro del header, sin flotar */}
+            <div className="inline-flex items-center gap-1.5 bg-white rounded-full px-4 py-1.5 shadow-sm"
+              style={{ color: cfg.color }}>
+              <Tag className="w-3 h-3" />
+              <span className="text-xs font-black">Suscribite y ahorrá</span>
+            </div>
           </div>
         </div>
 
-        {/* Badge flotante */}
-        <div className="absolute top-[148px] left-1/2 -translate-x-1/2 bg-white font-black text-xs px-4 py-1.5 rounded-full shadow-lg border-2 whitespace-nowrap z-20 flex items-center gap-1.5"
-          style={{ borderColor: cfg.color, color: cfg.color }}>
-          <Sparkles className="w-3 h-3" /> Suscribite y ahorrá
-        </div>
-
         {/* Body */}
-        <div className="px-8 pt-10 pb-8">
+        <div className="px-8 pt-6 pb-8">
           <p className="text-gray-500 text-sm text-center mb-5 leading-relaxed">
             {cfg.subtitulo}
           </p>
@@ -120,7 +120,7 @@ export default function PopupDescuento() {
           {status === 'ok' ? (
             <div className="text-center py-4">
               <div className="w-14 h-14 rounded-2xl bg-green-50 flex items-center justify-center mx-auto mb-3">
-                <Sparkles className="w-7 h-7 text-green-500" />
+                <Tag className="w-7 h-7 text-green-500" />
               </div>
               <p className="font-bold text-gray-900 mb-1">¡Listo! Ya estás suscripto</p>
               <p className="text-sm text-gray-400">Te contactaremos con tu descuento</p>
