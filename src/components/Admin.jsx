@@ -9,7 +9,8 @@ import {
   X, Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp,
   Save, ArrowLeft, Eye, EyeOff, Lock, Package, CreditCard,
   Image, Settings, ShoppingBag, AlertCircle,
-  CheckCircle, LayoutDashboard, FileText, Tag, Percent, Users, Mail, Download
+  CheckCircle, LayoutDashboard, FileText, Tag, Percent, Users, Mail, Download,
+  Sliders, Globe, Palette, Bell
 } from 'lucide-react';
 
 /* ─── AUTH ─── */
@@ -141,17 +142,34 @@ export default function Admin() {
     );
   }
 
-  const TABS = [
-    { key:'pedidos',   label:'Pedidos',         icon:<ShoppingBag className="w-4 h-4"/>, badge:nuevos||null },
-    { key:'productos', label:'Productos',        icon:<Package className="w-4 h-4"/> },
-    { key:'promos',    label:'Promos Bancarias', icon:<CreditCard className="w-4 h-4"/> },
-    { key:'banners',   label:'Banners',          icon:<Image className="w-4 h-4"/> },
-    { key:'paginas',   label:'Páginas',          icon:<FileText className="w-4 h-4"/> },
-    { key:'suscriptores', label:'Suscriptores',    icon:<Users className="w-4 h-4"/> },
-    { key:'categorias', label:'Categorías',        icon:<LayoutDashboard className="w-4 h-4"/> },
-    { key:'programas', label:'Programas',         icon:<Tag className="w-4 h-4"/> },
-    { key:'config',    label:'Configuración',    icon:<Settings className="w-4 h-4"/> },
+  const TAB_GROUPS = [
+    {
+      label: 'Ventas',
+      tabs: [
+        { key:'pedidos',     label:'Pedidos',      icon:<ShoppingBag className="w-4 h-4"/>, badge:nuevos||null },
+        { key:'suscriptores',label:'Suscriptores', icon:<Mail className="w-4 h-4"/> },
+      ]
+    },
+    {
+      label: 'Catálogo',
+      tabs: [
+        { key:'productos',   label:'Productos',    icon:<Package className="w-4 h-4"/> },
+        { key:'categorias',  label:'Categorías',   icon:<LayoutDashboard className="w-4 h-4"/> },
+        { key:'programas',   label:'Programas',    icon:<Tag className="w-4 h-4"/> },
+        { key:'promos',      label:'Promos',       icon:<CreditCard className="w-4 h-4"/> },
+      ]
+    },
+    {
+      label: 'Sitio',
+      tabs: [
+        { key:'banners',     label:'Banners',      icon:<Image className="w-4 h-4"/> },
+        { key:'contenido',   label:'Contenido',    icon:<Sliders className="w-4 h-4"/> },
+        { key:'paginas',     label:'Páginas',      icon:<FileText className="w-4 h-4"/> },
+        { key:'config',      label:'Config',       icon:<Settings className="w-4 h-4"/> },
+      ]
+    },
   ];
+  const TABS = TAB_GROUPS.flatMap(g => g.tabs);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -163,13 +181,19 @@ export default function Admin() {
             </div>
             <span className="font-semibold text-gray-900 text-sm">Panel MaxFarma</span>
             <span className="hidden sm:block text-gray-300">|</span>
-            <nav className="hidden sm:flex items-center gap-1">
-              {TABS.map(t => (
-                <button key={t.key} onClick={()=>setTab(t.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab===t.key?'bg-[#C8102E] text-white':'text-gray-600 hover:bg-gray-100'}`}>
-                  {t.icon} {t.label}
-                  {t.badge && <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${tab===t.key?'bg-white text-[#C8102E]':'bg-[#C8102E] text-white'}`}>{t.badge}</span>}
-                </button>
+            <nav className="hidden sm:flex items-center gap-3">
+              {TAB_GROUPS.map((group, gi) => (
+                <div key={gi} className="flex items-center gap-1">
+                  {gi > 0 && <div className="w-px h-4 bg-gray-200 mr-2" />}
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1 hidden lg:block">{group.label}</span>
+                  {group.tabs.map(t => (
+                    <button key={t.key} onClick={()=>setTab(t.key)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tab===t.key?'bg-[#C8102E] text-white':'text-gray-600 hover:bg-gray-100'}`}>
+                      {t.icon} <span className="hidden lg:inline">{t.label}</span>
+                      {t.badge && <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full leading-none ${tab===t.key?'bg-white text-[#C8102E]':'bg-[#C8102E] text-white'}`}>{t.badge}</span>}
+                    </button>
+                  ))}
+                </div>
               ))}
             </nav>
           </div>
@@ -197,6 +221,7 @@ export default function Admin() {
         {tab==='suscriptores' && <SuscriptoresTab/>}
         {tab==='categorias' && <CategoriasTab/>}
         {tab==='programas' && <ProgramasTab/>}
+        {tab==='contenido'  && <ContenidoTab/>}
         {tab==='config'    && <ConfigTab/>}
       </div>
     </div>
@@ -2150,6 +2175,348 @@ function SuscriptoresTab() {
           onCancel={() => setConfirmDel(null)}
         />
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TAB: CONTENIDO DEL SITIO
+   Permite editar desde el panel:
+   - Popup de bienvenida (imagen, título, descuento, activo/inactivo)
+   - Banner CHIMOLA (colores, texto, imagen, activo/inactivo)
+   - Sección "Quiénes Somos" (texto, foto, estadísticas)
+═══════════════════════════════════════════════════════════ */
+const DEFAULT_CONTENIDO = {
+  popup: {
+    activo: true,
+    titulo: '10% OFF en tu primera compra',
+    subtitulo: 'Suscribite y ahorrá en tu primer pedido',
+    descuento: '10%',
+    imagen_url: '',
+    delay_segundos: 4,
+    boton_texto: 'Quiero mi descuento',
+    color: '#C8102E',
+  },
+  chimola_banner: {
+    activo: true,
+    titulo: 'CHIMOLA',
+    subtitulo: 'Carteras · Billeteras · Mochilas · Accesorios',
+    descripcion: 'Consultá precios mayoristas para revendedores. Asesoramiento sin compromiso.',
+    imagen_url: '',
+    color_fondo: '#1a1a1a',
+    color_acento: '#f59e0b',
+    boton_texto: 'Ver catálogo CHIMOLA',
+    boton_mayorista: 'Precio mayorista',
+  },
+  quienes_somos: {
+    titulo: 'Somos MaxFarma',
+    subtitulo: 'Una farmacia familiar con más de 15 años cuidando la salud de nuestra comunidad.',
+    mision: 'En MaxFarma trabajamos todos los días para que vos y tu familia tengan acceso a los mejores medicamentos y productos de salud.',
+    foto_url: '',
+    anios: '+15',
+    productos: '+2000',
+    stats: [
+      { val:'+15',   label:'Años de experiencia' },
+      { val:'+2000', label:'Productos disponibles' },
+      { val:'100%',  label:'Productos originales' },
+      { val:'24/7',  label:'Consultas WhatsApp' },
+    ],
+  },
+};
+
+function ContenidoTab() {
+  const { state, saveConfig } = useStore();
+  const [seccion, setSeccion] = useState('popup'); // 'popup' | 'chimola' | 'quienes'
+  const [saved, setSaved]     = useState(false);
+
+  // Merge stored with defaults
+  const contenido = { ...DEFAULT_CONTENIDO, ...(state.contenido || {}) };
+  const [form, setForm] = useState(contenido);
+
+  const setNested = (section, key, val) => {
+    setForm(f => ({ ...f, [section]: { ...f[section], [key]: val } }));
+  };
+
+  const handleSave = async () => {
+    await saveConfig('contenido', form);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  const SECCIONES = [
+    { key:'popup',    label:'Pop-up de bienvenida',   icon:<Bell className="w-4 h-4"/> },
+    { key:'chimola',  label:'Banner CHIMOLA',          icon:<Palette className="w-4 h-4"/> },
+    { key:'quienes',  label:'Quiénes somos',           icon:<Globe className="w-4 h-4"/> },
+  ];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-base font-bold text-gray-900">Contenido del sitio</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Editá textos, imágenes y configuración de cada sección</p>
+        </div>
+        <button onClick={handleSave}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors">
+          <Save className="w-4 h-4" />
+          {saved ? '✓ Guardado' : 'Guardar todo'}
+        </button>
+      </div>
+
+      {/* Selector de sección */}
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        {SECCIONES.map(s => (
+          <button key={s.key} onClick={() => setSeccion(s.key)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all whitespace-nowrap ${
+              seccion === s.key
+                ? 'bg-[#C8102E] text-white border-[#C8102E]'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+            }`}>
+            {s.icon} {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── POPUP ── */}
+      {seccion === 'popup' && (
+        <div className="grid md:grid-cols-2 gap-5">
+          {/* Preview */}
+          <div className="bg-gray-100 rounded-2xl p-4 flex items-center justify-center min-h-[340px]">
+            <div className="bg-white rounded-2xl shadow-xl w-72 overflow-hidden">
+              <div className="px-6 pt-7 pb-8 text-center relative" style={{ background: `linear-gradient(135deg, ${form.popup.color}, #7A0019)` }}>
+                <p className="text-white/70 text-xs font-bold uppercase tracking-widest mb-1">Oferta exclusiva</p>
+                <p className="text-white text-2xl font-black">{form.popup.descuento}</p>
+                <p className="text-white text-sm font-semibold mt-0.5">{form.popup.titulo}</p>
+                <p className="text-white/60 text-xs mt-1">{form.popup.subtitulo}</p>
+              </div>
+              <div className="px-5 py-4">
+                <div className="w-full bg-gray-100 rounded-lg h-8 mb-2.5 flex items-center px-3">
+                  <span className="text-xs text-gray-400">tu@email.com</span>
+                </div>
+                <div className="w-full rounded-lg h-8 flex items-center justify-center text-white text-xs font-bold"
+                  style={{ background: form.popup.color }}>
+                  {form.popup.boton_texto}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Formulario */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
+            {/* Activo/Inactivo */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Pop-up activo</p>
+                <p className="text-xs text-gray-400">Si está inactivo no aparece en el sitio</p>
+              </div>
+              <button
+                onClick={() => setNested('popup','activo',!form.popup.activo)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${form.popup.activo ? 'bg-[#C8102E]' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.popup.activo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+
+            <div>
+              <Label>Título principal (ej: 10% OFF en tu primera compra)</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.popup.titulo} onChange={e => setNested('popup','titulo',e.target.value)} />
+            </div>
+            <div>
+              <Label>Subtítulo</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.popup.subtitulo} onChange={e => setNested('popup','subtitulo',e.target.value)} />
+            </div>
+            <div>
+              <Label>Descuento (texto grande, ej: 10% OFF)</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.popup.descuento} onChange={e => setNested('popup','descuento',e.target.value)} />
+            </div>
+            <div>
+              <Label>Texto del botón</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.popup.boton_texto} onChange={e => setNested('popup','boton_texto',e.target.value)} />
+            </div>
+            <div>
+              <Label>Segundos antes de aparecer</Label>
+              <input type="number" min="0" max="30"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.popup.delay_segundos} onChange={e => setNested('popup','delay_segundos',Number(e.target.value))} />
+            </div>
+            <div className="flex items-center gap-3">
+              <div>
+                <Label>Color</Label>
+                <input type="color" value={form.popup.color}
+                  onChange={e => setNested('popup','color',e.target.value)}
+                  className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+              </div>
+              <div className="flex-1">
+                <Label>Código de color</Label>
+                <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                  value={form.popup.color} onChange={e => setNested('popup','color',e.target.value)} />
+              </div>
+            </div>
+            <ImageField
+              label="Imagen del popup (opcional)"
+              value={form.popup.imagen_url || ''}
+              onChange={v => setNested('popup','imagen_url',v)}
+              placeholder="https://..."
+              previewClass="w-16 h-16"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── BANNER CHIMOLA ── */}
+      {seccion === 'chimola' && (
+        <div className="grid md:grid-cols-2 gap-5">
+          {/* Preview */}
+          <div className="rounded-2xl overflow-hidden" style={{ background: form.chimola_banner.color_fondo, minHeight:'180px' }}>
+            <div className="p-6">
+              <span className="inline-flex items-center gap-1.5 border text-xs font-bold px-3 py-1 rounded-full mb-3"
+                style={{ borderColor: form.chimola_banner.color_acento + '50', color: form.chimola_banner.color_acento, background: form.chimola_banner.color_acento + '20' }}>
+                Marca exclusiva
+              </span>
+              <h2 className="text-white text-2xl font-black">{form.chimola_banner.titulo}</h2>
+              <p className="text-sm mt-1" style={{ color: form.chimola_banner.color_acento + 'BB' }}>{form.chimola_banner.subtitulo}</p>
+              <p className="text-gray-400 text-xs mt-1 mb-4">{form.chimola_banner.descripcion}</p>
+              <div className="flex gap-2">
+                <span className="inline-flex items-center text-black text-xs font-bold px-4 py-2 rounded-xl"
+                  style={{ background: form.chimola_banner.color_acento }}>
+                  {form.chimola_banner.boton_texto}
+                </span>
+                <span className="inline-flex items-center text-white text-xs font-semibold px-4 py-2 rounded-xl border border-white/20 bg-white/10">
+                  {form.chimola_banner.boton_mayorista}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Banner activo</p>
+                <p className="text-xs text-gray-400">Visible en el inicio del sitio</p>
+              </div>
+              <button onClick={() => setNested('chimola_banner','activo',!form.chimola_banner.activo)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${form.chimola_banner.activo ? 'bg-[#C8102E]' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.chimola_banner.activo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            <div><Label>Título (ej: CHIMOLA)</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.chimola_banner.titulo} onChange={e => setNested('chimola_banner','titulo',e.target.value)} /></div>
+            <div><Label>Subtítulo</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.chimola_banner.subtitulo} onChange={e => setNested('chimola_banner','subtitulo',e.target.value)} /></div>
+            <div><Label>Descripción</Label>
+              <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.chimola_banner.descripcion} onChange={e => setNested('chimola_banner','descripcion',e.target.value)} /></div>
+            <div><Label>Texto botón principal</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.chimola_banner.boton_texto} onChange={e => setNested('chimola_banner','boton_texto',e.target.value)} /></div>
+            <div><Label>Texto botón mayorista</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.chimola_banner.boton_mayorista} onChange={e => setNested('chimola_banner','boton_mayorista',e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Color de fondo</Label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={form.chimola_banner.color_fondo}
+                    onChange={e => setNested('chimola_banner','color_fondo',e.target.value)}
+                    className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                  <input className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                    value={form.chimola_banner.color_fondo} onChange={e => setNested('chimola_banner','color_fondo',e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Color de acento</Label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={form.chimola_banner.color_acento}
+                    onChange={e => setNested('chimola_banner','color_acento',e.target.value)}
+                    className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                  <input className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                    value={form.chimola_banner.color_acento} onChange={e => setNested('chimola_banner','color_acento',e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <ImageField
+              label="Imagen de fondo del banner (opcional)"
+              value={form.chimola_banner.imagen_url || ''}
+              onChange={v => setNested('chimola_banner','imagen_url',v)}
+              placeholder="https://..."
+              previewClass="w-20 h-12"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── QUIÉNES SOMOS ── */}
+      {seccion === 'quienes' && (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 grid md:grid-cols-2 gap-5">
+          <div className="flex flex-col gap-4">
+            <div><Label>Título principal</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.quienes_somos.titulo} onChange={e => setNested('quienes_somos','titulo',e.target.value)} /></div>
+            <div><Label>Subtítulo del hero</Label>
+              <textarea rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.quienes_somos.subtitulo} onChange={e => setNested('quienes_somos','subtitulo',e.target.value)} /></div>
+            <div><Label>Texto de misión</Label>
+              <textarea rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.quienes_somos.mision} onChange={e => setNested('quienes_somos','mision',e.target.value)} /></div>
+            <ImageField
+              label="Foto del local / equipo"
+              value={form.quienes_somos.foto_url || ''}
+              onChange={v => setNested('quienes_somos','foto_url',v)}
+              placeholder="https://... o subir desde tu PC"
+              previewClass="w-24 h-16"
+            />
+          </div>
+          <div className="flex flex-col gap-4">
+            <div>
+              <Label>Estadísticas (4 valores)</Label>
+              <div className="flex flex-col gap-2">
+                {(form.quienes_somos.stats || DEFAULT_CONTENIDO.quienes_somos.stats).map((stat, i) => (
+                  <div key={i} className="flex gap-2 items-center">
+                    <input
+                      className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                      value={stat.val}
+                      onChange={e => {
+                        const newStats = [...(form.quienes_somos.stats || DEFAULT_CONTENIDO.quienes_somos.stats)];
+                        newStats[i] = { ...newStats[i], val: e.target.value };
+                        setNested('quienes_somos','stats',newStats);
+                      }}
+                      placeholder="+15"
+                    />
+                    <input
+                      className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                      value={stat.label}
+                      onChange={e => {
+                        const newStats = [...(form.quienes_somos.stats || DEFAULT_CONTENIDO.quienes_somos.stats)];
+                        newStats[i] = { ...newStats[i], label: e.target.value };
+                        setNested('quienes_somos','stats',newStats);
+                      }}
+                      placeholder="Años de experiencia"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 mt-5">
+        <button onClick={handleSave}
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-xl transition-colors">
+          <Save className="w-4 h-4" /> Guardar cambios
+        </button>
+        {saved && (
+          <span className="flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
+            <CheckCircle className="w-4 h-4" /> Guardado y sincronizado
+          </span>
+        )}
+      </div>
     </div>
   );
 }

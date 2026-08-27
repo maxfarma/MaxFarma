@@ -1,12 +1,25 @@
 'use client';
 import { useMemo, useState } from 'react';
 import { useStore, formatPrice } from '@/lib/store';
-import { ShoppingCart, Heart, MessageCircle, ChevronRight, Search, SlidersHorizontal, X, Star, Package } from 'lucide-react';
+import { ShoppingBag, Search, X, Package, Heart, MessageCircle, ChevronRight } from 'lucide-react';
+import { ShoppingCart, Star, SlidersHorizontal } from 'lucide-react';
 import { showToast } from '@/components/Toast';
 
-const WA_MAYORISTA = '5493625298918';
+const WA_MAYORISTA    = '5493625298918';
 const WA_MSG_MAYORISTA = encodeURIComponent('Hola MaxFarma, quisiera consultar precios mayoristas de la marca CHIMOLA.');
 const WA_MSG_CONSULTA  = encodeURIComponent('Hola MaxFarma, quisiera consultar sobre un producto CHIMOLA.');
+
+const CHIMOLA_DEFAULTS = {
+  activo: true,
+  titulo: 'CHIMOLA',
+  subtitulo: 'Carteras · Billeteras · Mochilas · Accesorios',
+  descripcion: 'Consultá precios mayoristas para revendedores. Asesoramiento sin compromiso.',
+  imagen_url: '',
+  color_fondo: '#1a1a1a',
+  color_acento: '#f59e0b',
+  boton_texto: 'Ver catálogo CHIMOLA',
+  boton_mayorista: 'Precio mayorista',
+};
 
 const CATEGORIAS_CHIMOLA = [
   { key: 'todos',      label: 'Todo CHIMOLA' },
@@ -17,8 +30,24 @@ const CATEGORIAS_CHIMOLA = [
   { key: 'accesorios', label: 'Accesorios' },
 ];
 
+// Íconos SVG para categorías CHIMOLA (sin emojis)
+function ChimolaIcon({ catKey, className = 'w-5 h-5' }) {
+  const icons = {
+    todos:      <ShoppingBag className={className} />,
+    carteras:   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>,
+    billeteras: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>,
+    mochilas:   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>,
+    bolsos:     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>,
+    accesorios: <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>,
+  };
+  return icons[catKey] || <ShoppingBag className={className} />;
+}
+
 export default function MarcaChimola() {
   const { state, dispatch } = useStore();
+  const cfg = { ...CHIMOLA_DEFAULTS, ...(state.contenido?.chimola_banner || {}) };
+  const colorFondo  = cfg.color_fondo  || '#1a1a1a';
+  const colorAcento = cfg.color_acento || '#f59e0b';
   const [catActiva, setCatActiva] = useState('todos');
   const [buscar, setBuscar]       = useState('');
   const [showFiltros, setShowFiltros] = useState(false);
@@ -59,7 +88,7 @@ export default function MarcaChimola() {
     <div className="min-h-screen bg-gray-50 pb-20">
 
       {/* ── Hero banner CHIMOLA ── */}
-      <div className="relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a1a1a 0%, #2d1f0e 50%, #1a1a1a 100%)' }}>
+      <div className="relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${colorFondo} 0%, #2d1f0e 50%, ${colorFondo} 100%)` }}>
         {/* Decoración de fondo */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-amber-400 translate-x-32 -translate-y-32" />
@@ -70,28 +99,25 @@ export default function MarcaChimola() {
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="flex-1">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold px-3 py-1.5 rounded-full mb-4">
+              <div className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-4" style={{ background: colorAcento+'20', border:`1px solid ${colorAcento}50`, color: colorAcento }}>
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                 Marca oficial disponible en MaxFarma
               </div>
 
               <h1 className="text-white text-4xl sm:text-5xl font-black tracking-tight mb-3">
-                CHIMOLA
+                {cfg.titulo}
               </h1>
-              <p className="text-amber-200/80 text-lg mb-2 font-medium">
-                Carteras · Billeteras · Mochilas · Accesorios
+              <p className="text-lg mb-2 font-medium" style={{ color: colorAcento+'CC' }}>
+                {cfg.subtitulo}
               </p>
-              <p className="text-gray-400 text-sm mb-8 max-w-lg leading-relaxed">
-                Encontrá toda la colección CHIMOLA en un solo lugar. 
-                Diseño, calidad y estilo para cada ocasión.
-              </p>
+              <p className="text-gray-400 text-sm mb-8 max-w-lg leading-relaxed">{cfg.descripcion}</p>
 
               <div className="flex flex-wrap gap-3">
                 {/* Botón mayorista */}
                 <a
                   href={`https://wa.me/${WA_MAYORISTA}?text=${WA_MSG_MAYORISTA}`}
                   target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black px-6 py-3 rounded-xl transition-colors shadow-lg text-sm">
+                  className="inline-flex items-center gap-2.5 text-black font-black px-6 py-3 rounded-xl transition-colors shadow-lg text-sm" style={{ background: colorAcento }}>
                   <MessageCircle className="w-4 h-4" />
                   Consultar precio mayorista
                 </a>
@@ -148,16 +174,19 @@ export default function MarcaChimola() {
 
         {/* Filtros por subcategoría */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none">
-          {CATEGORIAS_CHIMOLA.map(c => (
-            <button key={c.key} onClick={() => setCatActiva(c.key)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                catActiva === c.key
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-amber-400 hover:text-amber-600'
-              }`}>
-              {c.label}
-            </button>
-          ))}
+          {CATEGORIAS_CHIMOLA.map(c => {
+            const isActive = catActiva === c.key;
+            return (
+              <button key={c.key} onClick={() => setCatActiva(c.key)}
+                className={`flex items-center gap-2 flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+                  isActive ? 'text-white border-transparent shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                }`}
+                style={isActive ? { background: colorAcento, borderColor: colorAcento } : {}}>
+                <ChimolaIcon catKey={c.key} className="w-3.5 h-3.5" />
+                {c.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Toolbar */}
@@ -213,7 +242,7 @@ export default function MarcaChimola() {
         {productos.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {productos.map(product => (
-              <ChimolaCard key={product.codigo} product={product} dispatch={dispatch} wishlist={state.wishlist} />
+              <ChimolaCard key={product.codigo} product={product} dispatch={dispatch} wishlist={state.wishlist} colorAcento={colorAcento} />
             ))}
           </div>
         )}
@@ -235,7 +264,7 @@ export default function MarcaChimola() {
 }
 
 /* ── Tarjeta de producto CHIMOLA ── */
-function ChimolaCard({ product, dispatch, wishlist }) {
+function ChimolaCard({ product, dispatch, wishlist, colorAcento = '#f59e0b' }) {
   const inWishlist = wishlist?.includes(product.codigo);
   const hasOffer   = product.precio_oferta && parseFloat(product.precio_oferta) > 0;
   const price      = hasOffer ? parseFloat(product.precio_oferta) : parseFloat(product.precio);
@@ -302,7 +331,7 @@ function ChimolaCard({ product, dispatch, wishlist }) {
               if (!soldOut) { dispatch({ type:'ADD_TO_CART', payload:product }); showToast('🛒 Agregado al carrito', 'cart'); }
             }}
             disabled={soldOut}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-gray-200 disabled:text-gray-400 transition-colors">
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white disabled:bg-gray-200 disabled:text-gray-400 transition-colors" style={{ background: colorAcento }}>
             <ShoppingCart className="w-3.5 h-3.5" />
             {soldOut ? 'Sin stock' : 'Agregar'}
           </button>

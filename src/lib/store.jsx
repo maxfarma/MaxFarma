@@ -107,7 +107,7 @@ export const DEFAULT_CATS = [
 ];
 
 const initialState = {
-  products: [], promos: [], banners: [], orders: [], programas: [],
+  products: [], promos: [], banners: [], orders: [], programas: [], contenido: {},
   categorias: DEFAULT_CATS,
   paginas: DEMO_PAGINAS,
   cart: [], wishlist: [], searchHistory: [],
@@ -126,11 +126,11 @@ function reducer(state, action) {
     case 'SET_PRODUCTS':        return { ...state, products: action.payload };
     case 'SET_PROMOS':          return { ...state, promos: action.payload };
     case 'SET_BANNERS':         return { ...state, banners: action.payload };
-    case 'SET_CHIMOLA_CONFIG':  return { ...state, chimolaConfig: action.payload };
     case 'SET_PAGINAS':         return { ...state, paginas: action.payload };
     case 'SET_ORDERS':          return { ...state, orders: action.payload };
     case 'SET_PROGRAMAS':       return { ...state, programas: action.payload };
     case 'SET_CATEGORIAS':      return { ...state, categorias: action.payload };
+    case 'SET_CONTENIDO':       return { ...state, contenido: action.payload };
     case 'ADD_ORDER':           return { ...state, orders: [action.payload, ...state.orders] };
     case 'UPDATE_ORDER_STATUS': return { ...state, orders: state.orders.map((o,i) => i===action.idx ? {...o,estado:action.status} : o) };
     case 'ADD_TO_CART': {
@@ -281,12 +281,12 @@ export function StoreProvider({ children }) {
       }
     }, err => console.error('programas error:', err)));
 
-    /* ── CHIMOLA CONFIG ── */
-    unsubs.push(onSnapshot(doc(db, COL, 'chimolaConfig'), snap => {
+    // Contenido editable del sitio (popup, banner chimola, quienes somos, etc.)
+    unsubs.push(onSnapshot(doc(db, COL, 'contenido'), snap => {
       if (snap.exists()) {
-        dispatch({ type:'SET_CHIMOLA_CONFIG', payload: snap.data() });
+        dispatch({ type:'SET_CONTENIDO', payload: snap.data() });
       }
-    }, err => console.error('chimolaConfig error:', err)));
+    }, err => console.error('contenido error:', err)));
 
     return () => unsubs.forEach(u => u());
   }, []);
@@ -318,9 +318,6 @@ export function StoreProvider({ children }) {
           break;
         case 'categorias':
           await saveSimple('categorias', { items: data });
-          break;
-        case 'chimolaConfig':
-          await saveSimple('chimolaConfig', data);
           break;
       }
     } catch (e) {
