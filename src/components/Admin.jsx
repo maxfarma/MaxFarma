@@ -505,8 +505,78 @@ function ProductosTab() {
     return '¿Eliminar este producto?';
   };
 
-  const [xlsxMode, setXlsxMode] = useState('add'); // 'add' | 'replace'
-  const [xlsxModalData, setXlsxModalData] = useState(null); // productos leídos del Excel
+  const [xlsxMode, setXlsxMode]     = useState('add'); // 'add' | 'replace'
+  const [xlsxModalData, setXlsxModalData] = useState(null);
+  const [priceUpdating, setPriceUpdating] = useState(false);
+  const [priceResult, setPriceResult]     = useState(null); // { updated, notFound }
+  const priceFileRef = useRef();
+
+  // ── Importar SOLO precios (codigo + precio + precio_oferta + stock) ──
+  const handlePriceXlsx = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
+        // Solo leer codigo, precio, precio_oferta, stock
+        const updates = rows
+          .filter(r => r.codigo || r.Codigo || r.CODIGO)
+          .map(r => ({
+            codigo:        String(r.codigo || r.Codigo || r.CODIGO || '').trim(),
+            precio:        r.precio        || r.Precio        || r.PRECIO        || '',
+            precio_oferta: r.precio_oferta || r.PrecioOferta  || r.PRECIO_OFERTA || '',
+            stock:         r.stock         || r.Stock         || r.STOCK         || '',
+          }))
+          .filter(r => r.codigo && r.precio !== '');
+
+        if (updates.length === 0) {
+          alert('No se encontraron filas con código y precio. Revisá el archivo.');
+          return;
+        }
+
+        setPriceUpdating(true);
+
+        // Actualizar solo los productos que coincidan por código
+        const updatedMap = new Map(updates.map(u => [u.codigo, u]));
+        let updated  = 0;
+        let notFound = 0;
+
+        const newProducts = state.products.map(p => {
+          const upd = updatedMap.get(p.codigo);
+          if (!upd) { notFound++; return p; }
+          updated++;
+          return {
+            ...p,
+            precio:        Number(upd.precio),
+            precio_oferta: upd.precio_oferta !== '' ? Number(upd.precio_oferta) : '',
+            // Solo actualizar stock si viene en el Excel
+            ...(upd.stock ? { stock: upd.stock } : {}),
+          };
+        });
+
+        // Productos del Excel que no existen en el catálogo
+        const notFoundCodes = updates
+          .filter(u => !state.products.find(p => p.codigo === u.codigo))
+          .map(u => u.codigo);
+
+        dispatch({ type:'SET_PRODUCTS', payload: newProducts });
+        saveConfig('products', newProducts);
+        setPriceResult({
+          updated,
+          notFound: notFoundCodes.length,
+          notFoundCodes: notFoundCodes.slice(0, 10), // mostrar máx 10
+        });
+        setPriceUpdating(false);
+      } catch (err) {
+        alert('Error al leer el archivo: ' + err.message);
+        setPriceUpdating(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
 
   const handleXlsx = (e) => {
     const file = e.target.files?.[0]; if(!file) return;
@@ -578,6 +648,17 @@ function ProductosTab() {
           <Upload className="w-4 h-4"/> Importar XLSX
         </button>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleXlsx}/>
+        {/* Actualizar precios */}
+        <button
+          onClick={()=>priceFileRef.current?.click()}
+          disabled={priceUpdating}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors disabled:opacity-60">
+          {priceUpdating
+            ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Actualizando...</>
+            : <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Actualizar precios (XLSX)</>
+          }
+        </button>
+        <input ref={priceFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handlePriceXlsx}/>
         {/* Eliminar todos */}
         {state.products.length > 0 && (
           <button onClick={()=>setConfirmDelete('all')}
@@ -683,6 +764,43 @@ function ProductosTab() {
           onConfirm={executeDelete}
           onCancel={()=>setConfirmDelete(null)}
         />
+      )}
+
+      {/* Resultado actualización de precios */}
+      {priceResult && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={()=>setPriceResult(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="w-5 h-5 text-emerald-600"/>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Precios actualizados</p>
+                <p className="text-xs text-gray-400">Los cambios ya están en todos los dispositivos</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-emerald-600">{priceResult.updated}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Productos actualizados</p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-amber-600">{priceResult.notFound}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Códigos no encontrados</p>
+              </div>
+            </div>
+            {priceResult.notFoundCodes?.length > 0 && (
+              <div className="bg-gray-50 rounded-xl p-3 mb-4">
+                <p className="text-xs font-semibold text-gray-600 mb-1">Códigos no encontrados:</p>
+                <p className="text-xs text-gray-400 font-mono">{priceResult.notFoundCodes.join(', ')}{priceResult.notFound > 10 ? ` y ${priceResult.notFound - 10} más...` : ''}</p>
+              </div>
+            )}
+            <button onClick={()=>setPriceResult(null)}
+              className="w-full py-2.5 text-sm font-semibold text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-xl transition-colors">
+              Cerrar
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Modal de importación XLSX */}
