@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState, useEffect } from 'react';
+import React from 'react';
 import { useStore, CAT_LABELS, CAT_ICONS, BRANDS, formatPrice } from '@/lib/store';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
@@ -178,6 +179,9 @@ function Inicio() {
           </div>
         </div>
       </div>
+
+      {/* ── Filas de productos por categoría ── */}
+      <FilasCategoria />
 
       {/* ── Banner CHIMOLA ── */}
       <ChimolaBanner />
@@ -382,6 +386,135 @@ function CategoriaGrid() {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+
+/* ════════════════════════════════════════════════════
+   FILAS DE PRODUCTOS POR CATEGORÍA
+   Muestra filas scrolleables horizontalmente,
+   una por categoría que tenga productos cargados.
+   El orden y cuáles mostrar se define en CATEGORIAS_INICIO.
+════════════════════════════════════════════════════ */
+
+// Categorías que querés mostrar en el inicio, en orden
+// Si la categoría no tiene productos, la fila no aparece
+const CATEGORIAS_INICIO = [
+  { key:'perfumes',         label:'Perfumes',              icon:<Wind className="w-5 h-5"/>,    color:'bg-pink-50 text-pink-600' },
+  { key:'bebe',             label:'Bebé & Maternidad',     icon:<Baby className="w-5 h-5"/>,    color:'bg-blue-50 text-blue-600' },
+  { key:'cuidado-personal', label:'Cuidado Personal',      icon:<Brush className="w-5 h-5"/>,   color:'bg-teal-50 text-teal-600' },
+  { key:'dermocosmetica',   label:'Dermocosmética',        icon:<Droplets className="w-5 h-5"/>,color:'bg-purple-50 text-purple-600' },
+  { key:'nutricion',        label:'Nutrición & Deporte',   icon:<Dumbbell className="w-5 h-5"/>,color:'bg-green-50 text-green-600' },
+  { key:'maquillaje',       label:'Maquillaje',            icon:<Sparkles className="w-5 h-5"/>,color:'bg-rose-50 text-rose-600' },
+  { key:'medicamentos',     label:'Medicamentos',          icon:<Pill className="w-5 h-5"/>,    color:'bg-red-50 text-red-600' },
+  { key:'hogar',            label:'Hogar',                 icon:<HomeIcon className="w-5 h-5"/>,color:'bg-amber-50 text-amber-600' },
+  { key:'infantiles',       label:'Infantiles',            icon:<Smile className="w-5 h-5"/>,   color:'bg-yellow-50 text-yellow-600' },
+  { key:'adultos-mayores',  label:'Adultos Mayores',       icon:<Users className="w-5 h-5"/>,   color:'bg-gray-100 text-gray-600' },
+];
+
+function FilasCategoria() {
+  const { state, dispatch } = useStore();
+
+  // Para cada categoría, obtener sus productos (máx 10 por fila)
+  const filasConProductos = CATEGORIAS_INICIO
+    .map(cat => ({
+      ...cat,
+      productos: state.products
+        .filter(p => p.categoria === cat.key && (p.stock || 'Disponible') !== 'Sin stock')
+        .slice(0, 10),
+    }))
+    .filter(cat => cat.productos.length >= 2); // Solo mostrar si tiene al menos 2 productos
+
+  // También buscar categorías dinámicas de Firestore que no estén en CATEGORIAS_INICIO
+  const catsDinamicasExtra = (state.categorias || [])
+    .filter(c => !CATEGORIAS_INICIO.find(ci => ci.key === c.key))
+    .map(cat => ({
+      key: cat.key,
+      label: cat.label,
+      icon: <ShoppingBag className="w-5 h-5" />,
+      color: 'bg-gray-100 text-gray-600',
+      productos: state.products
+        .filter(p => p.categoria === cat.key && (p.stock || 'Disponible') !== 'Sin stock')
+        .slice(0, 10),
+    }))
+    .filter(cat => cat.productos.length >= 2);
+
+  const todasLasFilas = [...filasConProductos, ...catsDinamicasExtra];
+
+  if (todasLasFilas.length === 0) return null;
+
+  return (
+    <div className="mt-6 flex flex-col gap-10">
+      {todasLasFilas.map((cat) => (
+        <FilaProductos key={cat.key} cat={cat} dispatch={dispatch} />
+      ))}
+    </div>
+  );
+}
+
+function FilaProductos({ cat, dispatch }) {
+  const scrollRef = React.useRef(null);
+
+  const scrollLeft  = () => scrollRef.current?.scrollBy({ left:-300, behavior:'smooth' });
+  const scrollRight = () => scrollRef.current?.scrollBy({ left: 300, behavior:'smooth' });
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 w-full">
+      {/* Header de la fila */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cat.color}`}>
+            {cat.icon}
+          </div>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">{cat.label}</h2>
+          <span className="text-xs text-gray-400 hidden sm:block">
+            {cat.productos.length} producto{cat.productos.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Flechas scroll — solo desktop */}
+          <button onClick={scrollLeft}
+            className="hidden sm:flex w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 items-center justify-center transition-colors shadow-sm">
+            <ChevronRight className="w-4 h-4 text-gray-500 rotate-180" />
+          </button>
+          <button onClick={scrollRight}
+            className="hidden sm:flex w-8 h-8 rounded-full border border-gray-200 bg-white hover:bg-gray-50 items-center justify-center transition-colors shadow-sm">
+            <ChevronRight className="w-4 h-4 text-gray-500" />
+          </button>
+          <button
+            onClick={() => dispatch({ type:'SET_CATEGORY', payload: cat.key })}
+            className="flex items-center gap-1 text-sm text-[#C8102E] font-semibold hover:gap-2 transition-all whitespace-nowrap">
+            Ver todos <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Scroll horizontal de productos */}
+      <div
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-auto pb-3 scrollbar-none snap-x snap-mandatory"
+        style={{ scrollbarWidth:'none', msOverflowStyle:'none' }}>
+        {cat.productos.map(product => (
+          <div key={product.codigo} className="snap-start flex-shrink-0" style={{ width:'200px' }}>
+            <ProductCard product={product} />
+          </div>
+        ))}
+
+        {/* Botón "Ver más" al final del scroll */}
+        <div className="snap-start flex-shrink-0 flex items-center justify-center" style={{ width:'120px' }}>
+          <button
+            onClick={() => dispatch({ type:'SET_CATEGORY', payload: cat.key })}
+            className="flex flex-col items-center gap-2 p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-[#C8102E] hover:bg-[#FFF9F9] transition-all w-full h-full min-h-[180px] group">
+            <div className="w-10 h-10 rounded-full bg-gray-100 group-hover:bg-[#C8102E] flex items-center justify-center transition-colors">
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 group-hover:text-[#C8102E] text-center transition-colors">
+              Ver todos los {cat.label.toLowerCase()}
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
