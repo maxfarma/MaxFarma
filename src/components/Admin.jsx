@@ -519,20 +519,62 @@ function ProductosTab() {
       try {
         const wb = XLSX.read(ev.target.result, { type:'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { defval:'' });
-        // Solo leer codigo, precio, precio_oferta, stock
-        const updates = rows
-          .filter(r => r.codigo || r.Codigo || r.CODIGO)
-          .map(r => ({
-            codigo:        String(r.codigo || r.Codigo || r.CODIGO || '').trim(),
-            precio:        r.precio        || r.Precio        || r.PRECIO        || '',
-            precio_oferta: r.precio_oferta || r.PrecioOferta  || r.PRECIO_OFERTA || '',
-            stock:         r.stock         || r.Stock         || r.STOCK         || '',
+
+        // Leer como array crudo para manejar cualquier formato de encabezado
+        const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+        // Buscar la fila de encabezados (la que tenga "código" o "precio")
+        let headerRow = -1;
+        let codigoCol = -1, precioCol = -1, ofertaCol = -1, stockCol = -1;
+
+        for (let i = 0; i < Math.min(5, raw.length); i++) {
+          const row = raw[i].map(c => String(c).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim());
+          const ci = row.findIndex(c => c.includes('codigo') || c.includes('ean') || c.includes('barras'));
+          const pi = row.findIndex(c => c.includes('precio') && !c.includes('oferta') && !c.includes('nuevo') || c === 'precio');
+          const oi = row.findIndex(c => c.includes('oferta') || c.includes('descuento'));
+          const si = row.findIndex(c => c.includes('stock'));
+          // También buscar por posición si hay columnas numéricas
+          const hasData = row.some(c => c.includes('codigo') || c.includes('ean') || c.includes('precio'));
+          if (hasData) {
+            headerRow  = i;
+            codigoCol  = ci >= 0 ? ci : 0;
+            precioCol  = pi >= 0 ? pi : 1;
+            ofertaCol  = oi >= 0 ? oi : 2;
+            stockCol   = si >= 0 ? si : 3;
+            break;
+          }
+        }
+
+        // Si no encontró encabezados, asumir que la primera fila tiene datos directamente
+        // col 0=codigo, col 1=precio, col 2=oferta, col 3=stock
+        if (headerRow === -1) {
+          headerRow = -1;
+          codigoCol = 0; precioCol = 1; ofertaCol = 2; stockCol = 3;
+        }
+
+        const dataRows = raw.slice(headerRow + 1);
+
+        const updates = dataRows
+          .map(row => ({
+            codigo:        String(row[codigoCol] || '').trim(),
+            precio:        row[precioCol],
+            precio_oferta: row[ofertaCol],
+            stock:         row[stockCol],
           }))
-          .filter(r => r.codigo && r.precio !== '');
+          .filter(r => {
+            // Filtrar filas vacías, filas de instrucción y filas sin precio
+            const isInstruction = String(r.codigo).length > 40 || r.codigo === '';
+            const hasPrice = r.precio !== '' && r.precio !== null && r.precio !== undefined && !isNaN(Number(r.precio));
+            return !isInstruction && hasPrice;
+          });
 
         if (updates.length === 0) {
-          alert('No se encontraron filas con código y precio. Revisá el archivo.');
+          alert('No se encontraron filas válidas con código y precio.
+
+Asegurate que:
+- La columna A tiene los códigos EAN
+- La columna B tiene los precios (solo números)
+- No hay filas vacías al inicio');
           return;
         }
 
