@@ -569,12 +569,7 @@ function ProductosTab() {
           });
 
         if (updates.length === 0) {
-          alert('No se encontraron filas válidas con código y precio.
-
-Asegurate que:
-- La columna A tiene los códigos EAN
-- La columna B tiene los precios (solo números)
-- No hay filas vacías al inicio');
+          alert('No se encontraron filas validas. El archivo debe tener: Col A=Codigo EAN, Col B=Precio, Col C=Precio oferta, Col D=Stock. La fila 1 es encabezado.');
           return;
         }
 
