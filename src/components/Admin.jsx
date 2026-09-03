@@ -510,6 +510,62 @@ function ProductosTab() {
   const [priceUpdating, setPriceUpdating] = useState(false);
   const [priceResult, setPriceResult]     = useState(null); // { updated, notFound }
   const priceFileRef = useRef();
+  const catFileRef   = useRef();
+  const [catUpdating, setCatUpdating] = useState(false);
+  const [catResult,   setCatResult]   = useState(null);
+
+  // ── Actualizar SOLO categorías por Excel ──
+  const handleCatXlsx = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+        // Col 0 = codigo, Col 1 = categoria — saltar fila 1 (encabezado)
+        const updates = raw
+          .slice(1)
+          .map(row => ({
+            codigo:    String(row[0] || '').trim(),
+            categoria: String(row[1] || '').trim().toLowerCase(),
+          }))
+          .filter(r => r.codigo && r.categoria && r.codigo.length <= 30);
+
+        if (updates.length === 0) {
+          alert('No se encontraron filas válidas. El archivo debe tener: Columna A=Código EAN, Columna B=Categoría.');
+          return;
+        }
+
+        setCatUpdating(true);
+        const updMap = new Map(updates.map(u => [u.codigo, u.categoria]));
+        let updated  = 0;
+        let notFound = 0;
+
+        const newProducts = state.products.map(p => {
+          const newCat = updMap.get(p.codigo);
+          if (!newCat) { notFound++; return p; }
+          updated++;
+          return { ...p, categoria: newCat };
+        });
+
+        const notFoundCodes = updates
+          .filter(u => !state.products.find(p => p.codigo === u.codigo))
+          .map(u => u.codigo);
+
+        dispatch({ type:'SET_PRODUCTS', payload: newProducts });
+        saveConfig('products', newProducts);
+        setCatResult({ updated, notFound: notFoundCodes.length, notFoundCodes: notFoundCodes.slice(0,10) });
+        setCatUpdating(false);
+      } catch(err) {
+        alert('Error al leer el archivo: ' + err.message);
+        setCatUpdating(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
 
   // ── Importar SOLO precios (codigo + precio + precio_oferta + stock) ──
   const handlePriceXlsx = (e) => {
@@ -696,6 +752,17 @@ function ProductosTab() {
           }
         </button>
         <input ref={priceFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handlePriceXlsx}/>
+        {/* Actualizar categorías */}
+        <button
+          onClick={() => catFileRef.current?.click()}
+          disabled={catUpdating}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 rounded-lg transition-colors disabled:opacity-60">
+          {catUpdating
+            ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Actualizando...</>
+            : <><LayoutDashboard className="w-4 h-4"/> Actualizar categorías (XLSX)</>
+          }
+        </button>
+        <input ref={catFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleCatXlsx}/>
         {/* Eliminar todos */}
         {state.products.length > 0 && (
           <button onClick={()=>setConfirmDelete('all')}
@@ -834,6 +901,43 @@ function ProductosTab() {
             )}
             <button onClick={()=>setPriceResult(null)}
               className="w-full py-2.5 text-sm font-semibold text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-xl transition-colors">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Resultado actualización de categorías */}
+      {catResult && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={()=>setCatResult(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <LayoutDashboard className="w-5 h-5 text-purple-600"/>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Categorías actualizadas</p>
+                <p className="text-xs text-gray-400">Los cambios ya están en todos los dispositivos</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-purple-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-purple-600">{catResult.updated}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Productos actualizados</p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-amber-600">{catResult.notFound}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Códigos no encontrados</p>
+              </div>
+            </div>
+            {catResult.notFoundCodes?.length > 0 && (
+              <div className="bg-gray-50 rounded-xl p-3 mb-4">
+                <p className="text-xs font-semibold text-gray-600 mb-1">Códigos no encontrados:</p>
+                <p className="text-xs text-gray-400 font-mono">{catResult.notFoundCodes.join(', ')}{catResult.notFound > 10 ? ' y más...' : ''}</p>
+              </div>
+            )}
+            <button onClick={()=>setCatResult(null)}
+              className="w-full py-2.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors">
               Cerrar
             </button>
           </div>
