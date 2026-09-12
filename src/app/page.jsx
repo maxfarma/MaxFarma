@@ -30,6 +30,9 @@ import {
 const WA = '5493625298918';
 const WA_NUM = '5493625298918';
 
+// Forzar renderizado dinámico — evita error de prerender con useStore
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   const { state } = useStore();
   const isPagina = state.currentSection?.startsWith('pagina-');
