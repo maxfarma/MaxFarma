@@ -18,6 +18,7 @@ import ProgramaDescuento from '@/components/ProgramaDescuento';
 import QuienesSomos from '@/components/QuienesSomos';
 import PopupDescuento from '@/components/PopupDescuento';
 import MarcaChimola from '@/components/MarcaChimola';
+import ObrasSociales from '@/components/ObrasSociales';
 import {
   ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star,
   ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText,
@@ -49,7 +50,8 @@ export default function Home() {
         {state.currentSection === 'checkout'  && <Checkout />}
         {state.currentSection === 'programa'  && <ProgramaDescuento />}
         {state.currentSection === 'chimola'       && <MarcaChimola />}
-        {state.currentSection === 'quienes-somos' && <QuienesSomos />}
+        {state.currentSection === 'quienes-somos'   && <QuienesSomos />}
+        {state.currentSection === 'obras-sociales'  && <ObrasSociales />}
         <PopupDescuento />
         {state.currentSection === 'admin'     && <Admin />}
         {isPagina && <PaginaEstatica slug={state.currentSection.replace('pagina-', '')} />}

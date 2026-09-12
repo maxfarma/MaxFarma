@@ -6,10 +6,28 @@ import { showToast } from '@/components/Toast';
 export default function ProductCard({ product, onQuickView }) {
   const { state, dispatch } = useStore();
   const inWishlist = state.wishlist?.includes(product.codigo);
+  const base       = parseFloat(product.precio || 0);
   const hasOffer   = product.precio_oferta && parseFloat(product.precio_oferta) > 0;
-  const price      = hasOffer ? parseFloat(product.precio_oferta) : parseFloat(product.precio);
-  const discount   = hasOffer ? Math.round((1 - parseFloat(product.precio_oferta) / parseFloat(product.precio)) * 100) : 0;
   const soldOut    = (product.stock || '').toLowerCase().includes('sin');
+
+  // Buscar descuento de programa de laboratorio
+  let programaDesc = 0;
+  if (!hasOffer) {
+    for (const prog of (state.programas || [])) {
+      const pp = (prog.productos || []).find(p => p.codigo === product.codigo);
+      if (pp?.descuento > 0) { programaDesc = pp.descuento; break; }
+    }
+  }
+
+  const price    = hasOffer
+    ? parseFloat(product.precio_oferta)
+    : programaDesc > 0
+      ? base * (1 - programaDesc / 100)
+      : base;
+  const discount = hasOffer
+    ? Math.round((1 - parseFloat(product.precio_oferta) / base) * 100)
+    : programaDesc;
+  const discountSource = hasOffer ? 'oferta' : programaDesc > 0 ? 'programa' : null;
 
   return (
     <div className="product-card group cursor-pointer" onClick={() => dispatch({ type: 'OPEN_PRODUCT_MODAL', payload: product })}>
@@ -17,8 +35,11 @@ export default function ProductCard({ product, onQuickView }) {
       <div className="relative overflow-hidden bg-gray-50 aspect-square">
         {/* Badges top-left */}
         <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-          {hasOffer && (
-            <span className="bg-[#C8102E] text-white text-[11px] font-bold px-2 py-0.5 rounded-md leading-tight">-{discount}%</span>
+          {discount > 0 && (
+            <span className="text-white text-[11px] font-bold px-2 py-0.5 rounded-md leading-tight"
+              style={{ background: discountSource==='programa' ? '#7C3AED' : '#C8102E' }}>
+              -{discount}%{discountSource==='programa' ? ' PROG.' : ''}
+            </span>
           )}
           {(product.nuevo || '').toUpperCase() === 'SI' && (
             <span className="bg-amber-400 text-white text-[11px] font-bold px-2 py-0.5 rounded-md leading-tight">NUEVO</span>
@@ -86,14 +107,7 @@ export default function ProductCard({ product, onQuickView }) {
         </div>
 
         {/* Cuotas hint */}
-        <div className="mb-3 flex flex-col gap-0.5">
-          <p className="text-[11px] text-gray-500">
-            <span className="font-semibold text-gray-700">3 cuotas</span> sin interés con Visa/MC — <strong className="text-gray-700">${formatPrice(price / 3)}</strong>
-          </p>
-          <p className="text-[11px] text-gray-400">
-            4 cuotas con Go Cuotas — <strong>${formatPrice(price / 4)}</strong>
-          </p>
-        </div>
+        <p className="text-[11px] text-gray-400 mb-3">3 cuotas con Go Cuotas de <strong className="text-gray-600">${formatPrice(price / 3)}</strong></p>
 
         <button
           onClick={e => {
