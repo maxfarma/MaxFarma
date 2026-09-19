@@ -9,13 +9,25 @@ import {
 } from 'lucide-react';
 
 const WHATSAPP = '5493625298918';
-const DESCUENTO_MP_DEBITO = 10; // % descuento MP y débito en productos sin oferta
+
+// Defaults — se sobreescriben con los valores del panel admin
+const MP_CONFIG_DEFAULTS = {
+  mp_debito_descuento:  10,
+  credito_umbral:       50000,
+  credito_cuotas_base:  3,
+  credito_cuotas_extra: 6,
+};
 
 export default function Checkout() {
   const { state, dispatch } = useStore();
   const [loading, setLoading]   = useState(false);
   const [step, setStep]         = useState(1);
   const [metodoPago, setMetodoPago] = useState(''); // 'mp'|'debito'|'credito'
+  const [cuotasElegidas, setCuotasElegidas] = useState(null); // null = no elegido aún
+
+  // Leer config de Firestore (panel admin → Config → Medios de pago)
+  const mpCfg = { ...MP_CONFIG_DEFAULTS, ...(state.contenido?.medios_pago || {}) };
+  const DESCUENTO_MP_DEBITO = mpCfg.mp_debito_descuento;
   const [form, setForm] = useState({
     name:'', phone:'', email:'', city:'', address:'', delivery:'retiro', notes:''
   });
@@ -63,12 +75,27 @@ export default function Checkout() {
     return { totalFinal: subtotal - descuento, descuentoAplicado: descuento };
   }, [metodoPago, subtotal, state.cart]);
 
-  // Cuotas según monto y medio de pago
-  const cuotasInfo = useMemo(() => {
-    if (metodoPago !== 'credito') return null;
-    if (subtotal < 50000) return { max:3, label:'Hasta 3 cuotas sin interés' };
-    return { max:6, label:'Hasta 6 cuotas sin interés' };
-  }, [metodoPago, subtotal]);
+  // Cuotas según monto y config del panel
+  const cuotasOpciones = useMemo(() => {
+    if (metodoPago !== 'credito') return [];
+    const base  = mpCfg.credito_cuotas_base;
+    const extra = mpCfg.credito_cuotas_extra;
+    const umbral = mpCfg.credito_umbral;
+    // Siempre mostrar cuotas base; si supera el umbral, agregar también las extra
+    if (subtotal >= umbral && extra > base) {
+      return [
+        { cuotas: base,  label: `${base} cuotas sin interés` },
+        { cuotas: extra, label: `${extra} cuotas sin interés` },
+      ];
+    }
+    return [{ cuotas: base, label: `${base} cuotas sin interés` }];
+  }, [metodoPago, subtotal, mpCfg]);
+
+  // Reset cuotas elegidas cuando cambia el método de pago
+  const handleSetMetodo = (metodo) => {
+    setMetodoPago(metodo);
+    setCuotasElegidas(null);
+  };
 
   const MEDIOS = [
     {
@@ -95,8 +122,12 @@ export default function Checkout() {
       key: 'credito',
       icon: <CreditCard className="w-5 h-5"/>,
       label: 'Tarjeta de crédito',
-      sub: subtotal < 50000 ? 'Hasta 3 cuotas sin interés' : 'Hasta 6 cuotas sin interés',
-      badge: subtotal < 50000 ? '3 cuotas' : '6 cuotas',
+      sub: cuotasOpciones.length > 1
+        ? `${mpCfg.credito_cuotas_base} o ${mpCfg.credito_cuotas_extra} cuotas sin interés a elección`
+        : `${mpCfg.credito_cuotas_base} cuotas sin interés`,
+      badge: cuotasOpciones.length > 1
+        ? `Hasta ${mpCfg.credito_cuotas_extra} cuotas`
+        : `${mpCfg.credito_cuotas_base} cuotas`,
       color: 'text-purple-600',
       bg: 'bg-purple-50',
       border: 'border-purple-500',
@@ -125,6 +156,7 @@ export default function Checkout() {
       entrega:   form.delivery,
       notas:     form.notes,
       metodo_pago: metodoPago,
+      cuotas_elegidas: metodoPago === 'credito' ? (cuotasElegidas || cuotasOpciones[0]?.cuotas) : null,
       items,
       subtotal,
       descuento_pago: descuentoAplicado,
@@ -141,6 +173,11 @@ export default function Checkout() {
     });
 
     const medioLabel = MEDIOS.find(m => m.key === metodoPago)?.label || metodoPago;
+    const cuotasLabel = metodoPago === 'credito' && cuotasElegidas
+      ? ` — ${cuotasElegidas} cuotas`
+      : metodoPago === 'credito' && cuotasOpciones.length === 1
+        ? ` — ${cuotasOpciones[0].cuotas} cuotas`
+        : '';
 
     const msg = [
       `*NUEVO PEDIDO — MaxFarma*`,
@@ -152,7 +189,7 @@ export default function Checkout() {
       form.city  ? `*Localidad:* ${form.city}` : '',
       form.address ? `*Dirección:* ${form.address}` : '',
       `*Entrega:* ${form.delivery==='retiro' ? 'Retiro en farmacia' : 'Envío a domicilio'}`,
-      `*Medio de pago:* ${medioLabel}`,
+      `*Medio de pago:* ${medioLabel}${cuotasLabel}`,
       ``,
       `*Productos:*`,
       lines,
@@ -265,7 +302,7 @@ export default function Checkout() {
 
               <div className="flex flex-col gap-3">
                 {MEDIOS.map(m => (
-                  <button key={m.key} onClick={()=>setMetodoPago(m.key)}
+                  <button key={m.key} onClick={()=>handleSetMetodo(m.key)}
                     className={`flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${
                       metodoPago===m.key
                         ? `${m.border} ${m.bg}`
@@ -313,7 +350,12 @@ export default function Checkout() {
 
               <div className="flex gap-3">
                 <button onClick={()=>setStep(2)} className="btn-secondary flex-1">← Atrás</button>
-                <button onClick={()=>setStep(4)} disabled={!metodoPago} className="btn-primary flex-1 py-3 disabled:opacity-50">Revisar pedido →</button>
+                <button
+                  onClick={()=>setStep(4)}
+                  disabled={!metodoPago || (metodoPago==='credito' && cuotasOpciones.length > 1 && !cuotasElegidas)}
+                  className="btn-primary flex-1 py-3 disabled:opacity-50">
+                  Revisar pedido →
+                </button>
               </div>
             </>
           )}

@@ -1444,13 +1444,35 @@ function PaginasTab() {
 }
 
 /* ═══ CONFIG ═══ */
+// Defaults de medios de pago — se guardan en Firestore en contenido.medios_pago
+const DEFAULT_MEDIOS_PAGO = {
+  mp_debito_descuento:  10,   // % descuento MP y débito en productos sin oferta
+  credito_umbral:       50000, // monto a partir del cual aparece opción de 6 cuotas
+  credito_cuotas_base:  3,    // cuotas por defecto (siempre disponibles)
+  credito_cuotas_extra: 6,    // cuotas adicionales si supera el umbral
+};
+
 function ConfigTab() {
+  const { state, saveConfig } = useStore();
   const [currentPass,setCurrentPass]=useState('');
   const [newPass1,setNewPass1]=useState('');
   const [newPass2,setNewPass2]=useState('');
   const [showC,setShowC]=useState(false);
   const [showN,setShowN]=useState(false);
   const [msg,setMsg]=useState(null);
+
+  // Medios de pago config
+  const mpConfig = { ...DEFAULT_MEDIOS_PAGO, ...(state.contenido?.medios_pago || {}) };
+  const [mp, setMp] = useState(mpConfig);
+  const [mpSaved, setMpSaved] = useState(false);
+
+  const handleSaveMp = async () => {
+    const updated = { ...(state.contenido || {}), medios_pago: mp };
+    await saveConfig('contenido', updated);
+    setMpSaved(true);
+    setTimeout(() => setMpSaved(false), 2500);
+  };
+
   const handleChangePass=()=>{
     setMsg(null);
     if(!currentPass||!newPass1||!newPass2){setMsg({type:'error',text:'Completá todos los campos.'});return;}
@@ -1460,9 +1482,85 @@ function ConfigTab() {
     setNewPass(newPass1);setCurrentPass('');setNewPass1('');setNewPass2('');
     setMsg({type:'ok',text:'Contraseña actualizada.'});
   };
+
   return (
-    <div className="max-w-lg">
-      <h2 className="text-lg font-bold text-gray-900 mb-6">Configuración</h2>
+    <div className="max-w-2xl flex flex-col gap-6">
+      <h2 className="text-lg font-bold text-gray-900">Configuración</h2>
+
+      {/* ── Medios de pago ── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+            <CreditCard className="w-4 h-4 text-blue-600"/>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900 text-sm">Medios de pago y descuentos</p>
+            <p className="text-xs text-gray-400">Configurá los porcentajes y condiciones que se muestran en el checkout</p>
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-5">
+          {/* MP y Débito */}
+          <div className="bg-blue-50 rounded-xl p-4">
+            <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3">Mercado Pago / Débito</p>
+            <Label>% de descuento (en productos sin oferta)</Label>
+            <div className="relative">
+              <input type="number" min="0" max="50" value={mp.mp_debito_descuento}
+                onChange={e => setMp(m => ({...m, mp_debito_descuento: Number(e.target.value)}))}
+                className="w-full border border-blue-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 pr-8 bg-white"/>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+            </div>
+            <p className="text-xs text-blue-600 mt-1.5">
+              Actualmente: {mp.mp_debito_descuento}% de descuento
+            </p>
+          </div>
+
+          {/* Crédito */}
+          <div className="bg-purple-50 rounded-xl p-4">
+            <p className="text-xs font-bold text-purple-700 uppercase tracking-wide mb-3">Tarjeta de crédito</p>
+            <Label>Cuotas base (siempre disponibles)</Label>
+            <input type="number" min="1" max="12" value={mp.credito_cuotas_base}
+              onChange={e => setMp(m => ({...m, credito_cuotas_base: Number(e.target.value)}))}
+              className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 mb-3 bg-white"/>
+            <Label>Monto mínimo para cuotas extras ($)</Label>
+            <input type="number" min="0" value={mp.credito_umbral}
+              onChange={e => setMp(m => ({...m, credito_umbral: Number(e.target.value)}))}
+              className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 mb-3 bg-white"/>
+            <Label>Cuotas extras si supera el monto</Label>
+            <input type="number" min="1" max="24" value={mp.credito_cuotas_extra}
+              onChange={e => setMp(m => ({...m, credito_cuotas_extra: Number(e.target.value)}))}
+              className="w-full border border-purple-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 bg-white"/>
+            <p className="text-xs text-purple-600 mt-1.5">
+              Siempre: {mp.credito_cuotas_base} cuotas · Si supera ${formatPrice(mp.credito_umbral)}: también {mp.credito_cuotas_extra} cuotas
+            </p>
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div className="mt-4 bg-gray-50 rounded-xl p-4">
+          <p className="text-xs font-semibold text-gray-500 mb-2">Vista previa en el checkout:</p>
+          <div className="flex flex-col gap-1.5 text-xs text-gray-600">
+            <p>• MP / QR — <span className="font-bold text-blue-600">{mp.mp_debito_descuento}% OFF</span> en productos sin oferta</p>
+            <p>• Débito — <span className="font-bold text-green-600">{mp.mp_debito_descuento}% OFF</span> en productos sin oferta</p>
+            <p>• Crédito (hasta ${formatPrice(mp.credito_umbral)}) — <span className="font-bold text-purple-600">{mp.credito_cuotas_base} cuotas sin interés</span></p>
+            <p>• Crédito (más de ${formatPrice(mp.credito_umbral)}) — <span className="font-bold text-purple-600">{mp.credito_cuotas_base} o {mp.credito_cuotas_extra} cuotas a elección</span></p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 mt-4">
+          <button onClick={handleSaveMp}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-xl transition-colors">
+            <Save className="w-4 h-4"/> Guardar configuración
+          </button>
+          {mpSaved && (
+            <span className="flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
+              <CheckCircle className="w-4 h-4"/> Guardado
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Contraseña ── */}
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center"><Lock className="w-4 h-4 text-gray-600"/></div>
