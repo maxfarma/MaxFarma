@@ -19,7 +19,20 @@ export default function ProductModal() {
 
   const product = state.productModal;
 
-  // Cargar reseñas del producto
+  // ── useMemo SIEMPRE antes del early return ──
+  // Buscar descuento de programas de laboratorio
+  const programaDescuento = useMemo(() => {
+    if (!product) return null;
+    for (const prog of (state.programas || [])) {
+      const prodProg = (prog.productos || []).find(p => p.codigo === product.codigo);
+      if (prodProg && prodProg.descuento > 0) {
+        return { programa: prog.nombre, descuento: prodProg.descuento };
+      }
+    }
+    return null;
+  }, [product?.codigo, state.programas]);
+
+  // Cargar reseñas — useEffect también antes del early return
   useEffect(() => {
     if (!product) return;
     const q = query(collection(db,'resenas'), where('codigo','==', product.codigo));
@@ -31,18 +44,8 @@ export default function ProductModal() {
     return () => unsub();
   }, [product?.codigo]);
 
+  // Early return DESPUÉS de todos los hooks
   if (!product) return null;
-
-  // Buscar descuento de programas de laboratorio
-  const programaDescuento = useMemo(() => {
-    for (const prog of (state.programas || [])) {
-      const prodProg = (prog.productos || []).find(p => p.codigo === product.codigo);
-      if (prodProg && prodProg.descuento > 0) {
-        return { programa: prog.nombre, descuento: prodProg.descuento };
-      }
-    }
-    return null;
-  }, [product.codigo, state.programas]);
 
   const precioBase = parseFloat(product.precio || 0);
   const precioOferta = product.precio_oferta && parseFloat(product.precio_oferta) > 0

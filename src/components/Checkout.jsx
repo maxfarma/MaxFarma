@@ -20,17 +20,19 @@ const MP_CONFIG_DEFAULTS = {
 
 export default function Checkout() {
   const { state, dispatch } = useStore();
-  const [loading, setLoading]   = useState(false);
-  const [step, setStep]         = useState(1);
-  const [metodoPago, setMetodoPago] = useState(''); // 'mp'|'debito'|'credito'
-  const [cuotasElegidas, setCuotasElegidas] = useState(null); // null = no elegido aún
 
-  // Leer config de Firestore (panel admin → Config → Medios de pago)
-  const mpCfg = { ...MP_CONFIG_DEFAULTS, ...(state.contenido?.medios_pago || {}) };
-  const DESCUENTO_MP_DEBITO = mpCfg.mp_debito_descuento;
+  // ── Todos los hooks SIEMPRE arriba, sin condiciones ──
+  const [loading, setLoading]           = useState(false);
+  const [step, setStep]                 = useState(1);
+  const [metodoPago, setMetodoPago]     = useState('');
+  const [cuotasElegidas, setCuotasElegidas] = useState(null);
   const [form, setForm] = useState({
     name:'', phone:'', email:'', city:'', address:'', delivery:'retiro', notes:''
   });
+
+  // Leer config de Firestore — DESPUÉS de todos los hooks
+  const mpCfg = { ...MP_CONFIG_DEFAULTS, ...(state.contenido?.medios_pago || {}) };
+  const DESCUENTO_MP_DEBITO = mpCfg.mp_debito_descuento;
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
