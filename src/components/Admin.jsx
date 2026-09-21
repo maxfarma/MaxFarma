@@ -2543,6 +2543,17 @@ function SuscriptoresTab() {
    - Banner CHIMOLA (colores, texto, imagen, activo/inactivo)
    - Sección "Quiénes Somos" (texto, foto, estadísticas)
 ═══════════════════════════════════════════════════════════ */
+const DEFAULT_RECETA = {
+  activo:       true,
+  titulo:       'Envianos tu receta',
+  subtitulo:    'Preparamos tu medicamento y te lo entregamos',
+  descripcion:  'Fotografiá tu receta médica y mandánosla por WhatsApp. Nos encargamos de preparar tu medicamento y coordinar la entrega o el retiro.',
+  boton_texto:  'Enviar receta por WhatsApp',
+  imagen_url:   '',
+  color_fondo:  '#0f172a',
+  color_acento: '#C8102E',
+};
+
 const DEFAULT_CONTENIDO = {
   popup: {
     activo: true,
@@ -2588,7 +2599,11 @@ function ContenidoTab() {
 
   // Merge stored with defaults
   const contenido = { ...DEFAULT_CONTENIDO, ...(state.contenido || {}) };
-  const [form, setForm] = useState(contenido);
+  const contenidoConReceta = {
+    ...contenido,
+    receta_banner: contenido.receta_banner || DEFAULT_RECETA,
+  };
+  const [form, setForm] = useState(contenidoConReceta);
 
   const setNested = (section, key, val) => {
     setForm(f => ({ ...f, [section]: { ...f[section], [key]: val } }));
@@ -2602,6 +2617,7 @@ function ContenidoTab() {
 
   const SECCIONES = [
     { key:'popup',    label:'Pop-up de bienvenida',   icon:<Bell className="w-4 h-4"/> },
+    { key:'receta',   label:'Banner Recetas',          icon:<FileText className="w-4 h-4"/> },
     { key:'chimola',  label:'Banner CHIMOLA',          icon:<Palette className="w-4 h-4"/> },
     { key:'quienes',  label:'Quiénes somos',           icon:<Globe className="w-4 h-4"/> },
   ];
@@ -2718,6 +2734,87 @@ function ContenidoTab() {
               onChange={v => setNested('popup','imagen_url',v)}
               placeholder="https://..."
               previewClass="w-16 h-16"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── BANNER RECETAS ── */}
+      {seccion === 'receta' && (
+        <div className="grid md:grid-cols-2 gap-5">
+          {/* Preview */}
+          <div className="rounded-2xl overflow-hidden min-h-[160px] relative flex flex-col justify-center px-6 py-8"
+            style={{ background: form.receta_banner?.color_fondo || '#0f172a' }}>
+            {form.receta_banner?.imagen_url && (
+              <img src={form.receta_banner.imagen_url} alt=""
+                className="absolute inset-0 w-full h-full object-cover opacity-20"
+                onError={e => e.target.style.display='none'} />
+            )}
+            <div className="relative z-10">
+              <p className="text-xs font-bold uppercase tracking-widest mb-1"
+                style={{ color: form.receta_banner?.color_acento || '#C8102E' }}>
+                Servicio de recetas
+              </p>
+              <p className="text-white text-lg font-black mb-1">{form.receta_banner?.titulo}</p>
+              <p className="text-white/60 text-xs mb-4">{form.receta_banner?.descripcion}</p>
+              <span className="inline-flex items-center gap-2 text-white font-bold px-4 py-2 rounded-xl text-xs"
+                style={{ background: form.receta_banner?.color_acento || '#C8102E' }}>
+                {form.receta_banner?.boton_texto}
+              </span>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+              <div>
+                <p className="text-sm font-semibold text-gray-800">Banner activo</p>
+                <p className="text-xs text-gray-400">Visible en el inicio del sitio</p>
+              </div>
+              <button onClick={() => setNested('receta_banner','activo',!form.receta_banner?.activo)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${form.receta_banner?.activo ? 'bg-[#C8102E]' : 'bg-gray-300'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.receta_banner?.activo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            <div><Label>Título</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.receta_banner?.titulo || ''} onChange={e => setNested('receta_banner','titulo',e.target.value)} /></div>
+            <div><Label>Descripción</Label>
+              <textarea rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.receta_banner?.descripcion || ''} onChange={e => setNested('receta_banner','descripcion',e.target.value)} /></div>
+            <div><Label>Texto del botón</Label>
+              <input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                value={form.receta_banner?.boton_texto || ''} onChange={e => setNested('receta_banner','boton_texto',e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Color de fondo</Label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={form.receta_banner?.color_fondo || '#0f172a'}
+                    onChange={e => setNested('receta_banner','color_fondo',e.target.value)}
+                    className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                  <input className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                    value={form.receta_banner?.color_fondo || '#0f172a'}
+                    onChange={e => setNested('receta_banner','color_fondo',e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Color del botón</Label>
+                <div className="flex gap-2 items-center">
+                  <input type="color" value={form.receta_banner?.color_acento || '#C8102E'}
+                    onChange={e => setNested('receta_banner','color_acento',e.target.value)}
+                    className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                  <input className="flex-1 border border-gray-200 rounded-lg px-2 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#C8102E]"
+                    value={form.receta_banner?.color_acento || '#C8102E'}
+                    onChange={e => setNested('receta_banner','color_acento',e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <ImageField
+              label="Imagen de fondo (opcional)"
+              value={form.receta_banner?.imagen_url || ''}
+              onChange={v => setNested('receta_banner','imagen_url',v)}
+              placeholder="https://... o subir desde tu PC"
+              previewClass="w-20 h-12"
             />
           </div>
         </div>
