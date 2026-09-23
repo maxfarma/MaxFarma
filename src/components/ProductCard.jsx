@@ -35,7 +35,11 @@ export default function ProductCard({ product, onQuickView }) {
       <div className="relative overflow-hidden bg-gray-50 aspect-square">
         {/* Badges top-left */}
         <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-          {discount > 0 && (
+          {(product.promo_2x1||'').toUpperCase() === 'SI' ? (
+            <span className="bg-orange-500 text-white text-[11px] font-black px-2 py-0.5 rounded-md leading-tight tracking-wide">
+              2 X 1
+            </span>
+          ) : discount > 0 && (
             <span className="text-white text-[11px] font-bold px-2 py-0.5 rounded-md leading-tight"
               style={{ background: discountSource==='programa' ? '#7C3AED' : '#C8102E' }}>
               -{discount}%{discountSource==='programa' ? ' PROG.' : ''}

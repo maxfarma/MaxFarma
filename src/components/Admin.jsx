@@ -510,7 +510,136 @@ function ProductosTab() {
   const [priceUpdating, setPriceUpdating] = useState(false);
   const [priceResult, setPriceResult]     = useState(null); // { updated, notFound }
   const priceFileRef = useRef();
-  const catFileRef   = useRef();
+  const catFileRef     = useRef();
+  const ofertaFileRef  = useRef();
+  const [ofertaUpdating, setOfertaUpdating] = useState(false);
+  const [ofertaResult,   setOfertaResult]   = useState(null);
+
+  // ── Actualizar precio + descuento% + 2X1 + categoría desde Excel simple ──
+  const handleOfertaXlsx = (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const wb = XLSX.read(ev.target.result, { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+
+        const CATS_VALIDAS = new Set(['dermocosmetica','perfumes','bebe','cuidado-personal',
+          'nutricion','maquillaje','hogar','infantiles','salud-sexual','adultos-mayores','medicamentos']);
+        const CAT_MAP = {
+          'perfumería':'perfumes','perfumeria':'perfumes',
+          'medicamentos':'medicamentos','medicamento':'medicamentos',
+          'accesorios':'cuidado-personal','varios':'cuidado-personal',
+          'cosmetica':'dermocosmetica','cosmética':'dermocosmetica',
+          'bebes':'bebe','bebés':'bebe',
+        };
+        const fixCat = (c) => {
+          if (!c) return null;
+          const l = String(c).toLowerCase().trim();
+          if (CATS_VALIDAS.has(l)) return l;
+          return CAT_MAP[l] || null;
+        };
+
+        // Detectar columnas por encabezado
+        const headers = raw[0].map(h => String(h).toLowerCase()
+          .normalize('NFD').replace(/[̀-ͯ]/g,'').trim());
+
+        const ci = {
+          codigo:    headers.findIndex(h => h.includes('codigo') || h.includes('ean') || h.includes('barras')),
+          precio:    headers.findIndex(h => h.includes('precio') && !h.includes('oferta') && !h.includes('descuento')),
+          descuento: headers.findIndex(h => h.includes('descuento') || h.includes('%') || h.includes('oferta %')),
+          promocion: headers.findIndex(h => h.includes('promo') || h.includes('2x1')),
+          categoria: headers.findIndex(h => h.includes('categor') || h.includes('rubro')),
+        };
+
+        // Si no encontró por nombre, usar posición por defecto
+        if (ci.codigo    < 0) ci.codigo    = 0;
+        if (ci.precio    < 0) ci.precio    = 1;
+        if (ci.descuento < 0) ci.descuento = 2;
+        if (ci.promocion < 0) ci.promocion = 3;
+        if (ci.categoria < 0) ci.categoria = 4;
+
+        const updates = raw.slice(1).map(row => {
+          const codigo = String(row[ci.codigo] || '').trim();
+          if (!codigo || codigo.length > 30) return null;
+
+          const precioRaw    = row[ci.precio];
+          const descuentoRaw = String(row[ci.descuento] || '').trim().replace('%','').trim();
+          const promocionRaw = String(row[ci.promocion] || '').trim().toUpperCase();
+          const catRaw       = row[ci.categoria];
+
+          const precio     = precioRaw ? Number(precioRaw) : null;
+          const descuento  = descuentoRaw ? parseFloat(descuentoRaw) : null;
+          const is2x1      = promocionRaw === '2X1' || promocionRaw === '2 X 1';
+          const categoria  = catRaw ? fixCat(String(catRaw)) : null;
+
+          // Necesita al menos código + (precio o descuento o categoría)
+          if (!precio && !descuento && !is2x1 && !categoria) return null;
+
+          return { codigo, precio, descuento, is2x1, categoria };
+        }).filter(Boolean);
+
+        if (updates.length === 0) {
+          alert('No se encontraron filas válidas. Revisá que el archivo tenga código en col A y al menos precio, % descuento o categoría.');
+          return;
+        }
+
+        setOfertaUpdating(true);
+
+        const updMap = new Map(updates.map(u => [u.codigo, u]));
+        let updated = 0, notFound = 0;
+        const notFoundCodes = [];
+
+        const newProducts = state.products.map(p => {
+          const upd = updMap.get(p.codigo);
+          if (!upd) return p;
+
+          updated++;
+          const base = upd.precio ?? parseFloat(p.precio);
+
+          // Calcular precio_oferta
+          let precio_oferta = p.precio_oferta || '';
+          if (upd.is2x1) {
+            // 2X1: precio_oferta = mitad del precio (paga 1, lleva 2)
+            precio_oferta = Math.round(base / 2);
+          } else if (upd.descuento && upd.descuento > 0) {
+            // % descuento: calcular precio con descuento
+            precio_oferta = Math.round(base * (1 - upd.descuento / 100));
+          } else if (upd.precio && !upd.descuento) {
+            // Solo actualiza precio sin cambiar la oferta existente
+            precio_oferta = p.precio_oferta || '';
+          }
+
+          return {
+            ...p,
+            precio:        base,
+            precio_oferta: precio_oferta,
+            promo_2x1:     upd.is2x1 ? 'SI' : (p.promo_2x1 || 'NO'),
+            ...(upd.categoria ? { categoria: upd.categoria } : {}),
+          };
+        });
+
+        // Códigos no encontrados
+        updates.forEach(u => {
+          if (!state.products.find(p => p.codigo === u.codigo)) {
+            notFound++;
+            notFoundCodes.push(u.codigo);
+          }
+        });
+
+        dispatch({ type:'SET_PRODUCTS', payload: newProducts });
+        saveConfig('products', newProducts);
+        setOfertaResult({ updated, notFound, notFoundCodes: notFoundCodes.slice(0,10) });
+        setOfertaUpdating(false);
+      } catch(err) {
+        alert('Error al leer el archivo: ' + err.message);
+        setOfertaUpdating(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    e.target.value = '';
+  };
   const [catUpdating, setCatUpdating] = useState(false);
   const [catResult,   setCatResult]   = useState(null);
 
@@ -705,12 +834,24 @@ function ProductosTab() {
     if (!xlsxModalData) return;
     let updated;
     if (xlsxMode === 'replace') {
-      // Reemplazar todo
       updated = xlsxModalData;
     } else {
-      // Agregar al catálogo existente — si el código ya existe, actualizar; si no, agregar
+      // Agregar/actualizar — si el producto ya existe con imagen, conservar la imagen
       const existing = new Map(state.products.map(p => [p.codigo, p]));
-      xlsxModalData.forEach(p => existing.set(p.codigo, p));
+      xlsxModalData.forEach(newProd => {
+        const prev = existing.get(newProd.codigo);
+        if (prev) {
+          // Actualizar precio y datos, pero conservar imagen si el nuevo no tiene
+          existing.set(newProd.codigo, {
+            ...prev,
+            ...newProd,
+            imagen_url: newProd.imagen_url || prev.imagen_url || '',
+            descripcion: newProd.descripcion || prev.descripcion || '',
+          });
+        } else {
+          existing.set(newProd.codigo, newProd);
+        }
+      });
       updated = Array.from(existing.values());
     }
     dispatch({ type:'SET_PRODUCTS', payload: updated });
@@ -763,6 +904,17 @@ function ProductosTab() {
           }
         </button>
         <input ref={catFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleCatXlsx}/>
+        {/* Actualizar precio + oferta + categoría — todo en uno */}
+        <button
+          onClick={() => ofertaFileRef.current?.click()}
+          disabled={ofertaUpdating}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors disabled:opacity-60">
+          {ofertaUpdating
+            ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Procesando...</>
+            : <><Percent className="w-4 h-4"/> Actualizar precios y ofertas</>
+          }
+        </button>
+        <input ref={ofertaFileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleOfertaXlsx}/>
         {/* Eliminar todos */}
         {state.products.length > 0 && (
           <button onClick={()=>setConfirmDelete('all')}
@@ -938,6 +1090,49 @@ function ProductosTab() {
             )}
             <button onClick={()=>setCatResult(null)}
               className="w-full py-2.5 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-xl transition-colors">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Resultado actualización precios y ofertas */}
+      {ofertaResult && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center px-4" onClick={()=>setOfertaResult(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Percent className="w-5 h-5 text-amber-600"/>
+              </div>
+              <div>
+                <p className="font-bold text-gray-900">Precios y ofertas actualizados</p>
+                <p className="text-xs text-gray-400">Los cambios ya están en todos los dispositivos</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-amber-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-amber-600">{ofertaResult.updated}</p>
+                <p className="text-xs text-gray-500 mt-0.5">Productos actualizados</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-black text-gray-500">{ofertaResult.notFound}</p>
+                <p className="text-xs text-gray-500 mt-0.5">No encontrados</p>
+              </div>
+            </div>
+            {ofertaResult.notFoundCodes?.length > 0 && (
+              <div className="bg-gray-50 rounded-xl p-3 mb-4">
+                <p className="text-xs font-semibold text-gray-600 mb-1">Códigos no encontrados:</p>
+                <p className="text-xs text-gray-400 font-mono">{ofertaResult.notFoundCodes.join(', ')}{ofertaResult.notFound > 10 ? ' y más...' : ''}</p>
+              </div>
+            )}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
+              <p className="font-semibold mb-1">Qué se aplicó:</p>
+              <p>• % descuento → calculó precio oferta automáticamente</p>
+              <p>• 2X1 → precio oferta = mitad del precio</p>
+              <p>• Categoría → reasignada con valores válidos</p>
+            </div>
+            <button onClick={()=>setOfertaResult(null)}
+              className="w-full py-2.5 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-xl transition-colors">
               Cerrar
             </button>
           </div>
