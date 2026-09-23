@@ -1474,12 +1474,22 @@ function BannersTab() {
   const openNew  = () => { setForm({...EMPTY_BANNER,_isNew:true}); setEditIdx(-1); };
   const openEdit = (i) => { setForm({...state.banners[i]}); setEditIdx(i); };
   const set      = (k,v) => setForm(f=>({...f,[k]:v}));
-  const save = () => {
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
     if(!form.titulo){alert('El título es obligatorio.');return;}
+    setSaving(true);
     let updated;
-    if(form._isNew){const{_isNew,...clean}=form;updated=[...state.banners,clean];}
-    else{updated=state.banners.map((b,i)=>i===editIdx?{...form}:b);}
-    dispatch({type:'SET_BANNERS',payload:updated});saveConfig('banners',updated);setEditIdx(null);setForm(null);
+    const {_isNew, ...clean} = form;
+    if(_isNew){
+      updated = [...state.banners, clean];
+    } else {
+      updated = state.banners.map((b,i) => i===editIdx ? {...clean} : b);
+    }
+    dispatch({type:'SET_BANNERS', payload:updated});
+    await saveConfig('banners', updated);
+    setSaving(false);
+    setEditIdx(null);
+    setForm(null);
   };
   const remove   = (i)=>{ const n=state.banners.filter((_,idx)=>idx!==i); dispatch({type:'SET_BANNERS',payload:n});saveConfig('banners',n);setConfirmDel(null); };
   const toggle   = (i)=>{ const t=state.banners.map((b,idx)=>idx===i?{...b,activo:(b.activo||'SI')==='SI'?'NO':'SI'}:b); dispatch({type:'SET_BANNERS',payload:t});saveConfig('banners',t); };
@@ -1511,6 +1521,18 @@ function BannersTab() {
           <Field label="Subtítulo" col2><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.subtitulo} onChange={e=>set('subtitulo',e.target.value)}/></Field>
           <div className="md:col-span-2">
             <ImageField label="Imagen de fondo — URL o subir desde tu PC (se sube a Cloudinary y funciona en todos los dispositivos)" value={form.imagen_url||''} onChange={v=>set('imagen_url',v)} placeholder="https://..." previewClass="w-20 h-12"/>
+            {!form.imagen_url && (
+              <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5"/>
+                Esperá a que la imagen termine de subirse antes de guardar
+              </p>
+            )}
+            {form.imagen_url && (
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <CheckCircle className="w-3.5 h-3.5"/>
+                Imagen cargada correctamente — ya podés guardar
+              </p>
+            )}
           </div>
           <Field label="Texto del botón"><input className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#C8102E]" value={form.boton} onChange={e=>set('boton',e.target.value)} placeholder="Ver Productos"/></Field>
           <Field label="Destino del botón">
@@ -1548,7 +1570,13 @@ function BannersTab() {
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={()=>{setEditIdx(null);setForm(null);}} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
-          <button onClick={save} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors"><Save className="w-4 h-4"/>Guardar banner</button>
+          <button onClick={save} disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors disabled:opacity-60">
+            {saving
+              ? <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg> Guardando...</>
+              : <><Save className="w-4 h-4"/>Guardar banner</>
+            }
+          </button>
         </div>
       </div>
     );
