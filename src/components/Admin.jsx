@@ -545,15 +545,17 @@ function ProductosTab() {
         const headers = raw[0].map(h => String(h).toLowerCase()
           .normalize('NFD').replace(/[̀-ͯ]/g,'').trim());
 
+        // Detectar columnas por nombre de encabezado
         const ci = {
-          codigo:    headers.findIndex(h => h.includes('codigo') || h.includes('ean') || h.includes('barras')),
-          precio:    headers.findIndex(h => h.includes('precio') && !h.includes('oferta') && !h.includes('descuento')),
-          descuento: headers.findIndex(h => h.includes('descuento') || h.includes('%') || h.includes('oferta %')),
-          promocion: headers.findIndex(h => h.includes('promo') || h.includes('2x1')),
-          categoria: headers.findIndex(h => h.includes('categor') || h.includes('rubro')),
+          codigo:    headers.findIndex(h => h.includes('codigo') || h.includes('ean') || h.includes('barras') || h.includes('cod')),
+          precio:    headers.findIndex(h => (h.includes('precio') || h.includes('price') || h.includes('pvp')) && !h.includes('oferta') && !h.includes('descuento') && !h.includes('%')),
+          descuento: headers.findIndex(h => h.includes('descuento') || h.includes('% desc') || h.includes('oferta %') || h === '%' || h.includes('porcentaje')),
+          promocion: headers.findIndex(h => h.includes('promo') || h.includes('2x1') || h.includes('oferta especial')),
+          categoria: headers.findIndex(h => h.includes('categor') || h.includes('rubro') || h.includes('seccion')),
         };
 
-        // Si no encontró por nombre, usar posición por defecto
+        // Si no encontró por nombre usar posición fija de la plantilla:
+        // Col A=codigo, Col B=precio, Col C=% descuento, Col D=promo, Col E=categoria
         if (ci.codigo    < 0) ci.codigo    = 0;
         if (ci.precio    < 0) ci.precio    = 1;
         if (ci.descuento < 0) ci.descuento = 2;
@@ -565,17 +567,31 @@ function ProductosTab() {
           if (!codigo || codigo.length > 30) return null;
 
           const precioRaw    = row[ci.precio];
-          const descuentoRaw = String(row[ci.descuento] || '').trim().replace('%','').trim();
+          const descuentoRaw = row[ci.descuento];
           const promocionRaw = String(row[ci.promocion] || '').trim().toUpperCase();
           const catRaw       = row[ci.categoria];
 
-          const precio     = precioRaw ? Number(precioRaw) : null;
-          const descuento  = descuentoRaw ? parseFloat(descuentoRaw) : null;
-          const is2x1      = promocionRaw === '2X1' || promocionRaw === '2 X 1';
-          const categoria  = catRaw ? fixCat(String(catRaw)) : null;
+          // Precio: debe ser > 100 para ser un precio real (no un porcentaje)
+          const precioNum = precioRaw !== '' && precioRaw !== null ? Number(precioRaw) : null;
+          const precio = precioNum !== null && precioNum > 100 ? precioNum : null;
 
-          // Necesita al menos código + (precio o descuento o categoría)
+          // Descuento: número entre 1 y 99 (es un porcentaje)
+          const descuentoStr = String(descuentoRaw || '').trim().replace('%','').trim();
+          const descuentoNum = descuentoStr ? parseFloat(descuentoStr) : null;
+          const descuento = descuentoNum !== null && descuentoNum >= 1 && descuentoNum <= 99 ? descuentoNum : null;
+
+          const is2x1     = promocionRaw === '2X1' || promocionRaw === '2 X 1';
+          const categoria = catRaw ? fixCat(String(catRaw)) : null;
+
+          // Necesita al menos código + algo que cambiar
           if (!precio && !descuento && !is2x1 && !categoria) return null;
+
+          // Validación extra: si solo hay un número en col B y es < 100,
+          // probablemente es un descuento mal puesto en columna de precio
+          if (precio === null && precioNum !== null && precioNum >= 1 && precioNum <= 99 && descuento === null) {
+            // El usuario puso el % en la columna de precio — lo tomamos como descuento
+            return { codigo, precio: null, descuento: precioNum, is2x1, categoria };
+          }
 
           return { codigo, precio, descuento, is2x1, categoria };
         }).filter(Boolean);

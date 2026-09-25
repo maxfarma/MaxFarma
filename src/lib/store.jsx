@@ -285,6 +285,55 @@ export function StoreProvider({ children }) {
     unsubs.push(onSnapshot(doc(db, COL, 'contenido'), snap => {
       if (snap.exists()) {
         dispatch({ type:'SET_CONTENIDO', payload: snap.data() });
+      } else {
+        // Inicializar con defaults para que los banners funcionen desde el primer día
+        const defaultContenido = {
+          popup: {
+            activo: true,
+            titulo: '10% OFF en tu primera compra',
+            subtitulo: 'Suscribite y ahorrá en tu primer pedido',
+            descuento: '10% OFF',
+            imagen_url: '',
+            delay_segundos: 4,
+            boton_texto: 'Quiero mi descuento',
+            color: '#C8102E',
+          },
+          chimola_banner: {
+            activo: true,
+            titulo: 'CHIMOLA',
+            subtitulo: 'Carteras · Billeteras · Mochilas · Accesorios',
+            descripcion: 'Consultá precios mayoristas para revendedores. Asesoramiento sin compromiso.',
+            imagen_url: '',
+            color_fondo: '#1a1a1a',
+            color_acento: '#f59e0b',
+            boton_texto: 'Ver catálogo CHIMOLA',
+            boton_mayorista: 'Precio mayorista',
+          },
+          receta_banner: {
+            activo: true,
+            titulo: 'Envianos tu receta',
+            subtitulo: 'Preparamos tu medicamento y te lo entregamos',
+            descripcion: 'Fotografiá tu receta médica y mandánosla por WhatsApp.',
+            boton_texto: 'Enviar receta por WhatsApp',
+            imagen_url: '',
+            color_fondo: '#0f172a',
+            color_acento: '#C8102E',
+          },
+          quienes_somos: {
+            titulo: 'Somos MaxFarma',
+            subtitulo: 'Una farmacia familiar con más de 15 años cuidando la salud de nuestra comunidad.',
+            mision: 'En MaxFarma trabajamos todos los días para que vos y tu familia tengan acceso a los mejores medicamentos.',
+            foto_url: '',
+            stats: [
+              { val:'+15', label:'Años de experiencia' },
+              { val:'+2000', label:'Productos disponibles' },
+              { val:'100%', label:'Productos originales' },
+              { val:'24/7', label:'Consultas WhatsApp' },
+            ],
+          },
+        };
+        dispatch({ type:'SET_CONTENIDO', payload: defaultContenido });
+        saveSimple('contenido', defaultContenido);
       }
     }, err => console.error('contenido error:', err)));
 

@@ -19,6 +19,7 @@ import QuienesSomos from '@/components/QuienesSomos';
 import PopupDescuento from '@/components/PopupDescuento';
 import MarcaChimola from '@/components/MarcaChimola';
 import ObrasSociales from '@/components/ObrasSociales';
+import PromosBancariasPage from '@/components/PromosBancarias';
 import {
   ShoppingCart, Truck, Shield, CreditCard, Phone, Heart, Star,
   ChevronRight, Flame, Sparkles, TrendingUp, ArrowLeft, FileText,
@@ -48,7 +49,7 @@ export default function Home() {
         {state.currentSection === 'productos' && <Productos key={state.searchQuery + '|' + state.currentCategory} />}
         {state.currentSection === 'ofertas'   && <Ofertas />}
         {state.currentSection === 'promos'            && <ProgramasDescuento />}
-        {state.currentSection === 'promos-bancarias'   && <PromosBancarias />}
+        {state.currentSection === 'promos-bancarias'   && <PromosBancariasPage />}
         {state.currentSection === 'wishlist'  && <Wishlist />}
         {state.currentSection === 'checkout'  && <Checkout />}
         {state.currentSection === 'programa'  && <ProgramaDescuento />}
