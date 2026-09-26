@@ -1275,18 +1275,29 @@ function ProductForm({ product, onSave, onCancel }) {
 /* ═══ PROMOS ═══ */
 function PromosTab() {
   const { state, dispatch, saveConfig } = useStore();
-  const [editIdx, setEditIdx] = useState(null);
-  const [form, setForm]       = useState(null);
+  const [editIdx, setEditIdx]     = useState(null);
+  const [form, setForm]           = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
+  // ── TODOS los hooks ANTES de cualquier early return ──
+  const [promoSearch, setPromoSearch] = useState('');
+  const [promoFiltro, setPromoFiltro] = useState('todos');
+  const [saving, setSaving]       = useState(false);
+
   const openNew  = () => { setForm({...EMPTY_PROMO,_isNew:true}); setEditIdx(-1); };
   const openEdit = (i) => { setForm({...state.promos[i]}); setEditIdx(i); };
   const set      = (k,v) => setForm(f=>({...f,[k]:v}));
-  const save = () => {
+  const save = async () => {
     if(!form.tarjeta){alert('El nombre de la tarjeta es obligatorio.');return;}
+    setSaving(true);
     let updated;
-    if(form._isNew){const{_isNew,...clean}=form;updated=[...state.promos,clean];}
-    else{updated=state.promos.map((p,i)=>i===editIdx?{...form}:p);}
-    dispatch({type:'SET_PROMOS',payload:updated});saveConfig('promos',updated);setEditIdx(null);setForm(null);
+    const {_isNew,...clean} = form;
+    if(_isNew){ updated=[...state.promos,clean]; }
+    else{ updated=state.promos.map((p,i)=>i===editIdx?{...clean}:p); }
+    dispatch({type:'SET_PROMOS',payload:updated});
+    await saveConfig('promos',updated);
+    setSaving(false);
+    setEditIdx(null);
+    setForm(null);
   };
   const remove = (i)=>{ const n=state.promos.filter((_,idx)=>idx!==i); dispatch({type:'SET_PROMOS',payload:n});saveConfig('promos',n);setConfirmDel(null); };
   const toggle = (i)=>{ const t=state.promos.map((p,idx)=>idx===i?{...p,activa:(p.activa||'SI')==='SI'?'NO':'SI'}:p); dispatch({type:'SET_PROMOS',payload:t});saveConfig('promos',t); };
@@ -1314,14 +1325,12 @@ function PromosTab() {
       </div>
       <div className="flex gap-3 mt-5">
         <button onClick={()=>{setEditIdx(null);setForm(null);}} className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">Cancelar</button>
-        <button onClick={save} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors"><Save className="w-4 h-4"/>Guardar promo</button>
+        <button onClick={save} disabled={saving} className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-[#C8102E] hover:bg-[#9B0D22] rounded-lg transition-colors disabled:opacity-60">
+          {saving ? 'Guardando...' : <><Save className="w-4 h-4"/>Guardar promo</>}
+        </button>
       </div>
     </div>
   );
-
-  // Estado para búsqueda y filtros de la lista
-  const [promoSearch, setPromoSearch] = useState('');
-  const [promoFiltro, setPromoFiltro] = useState('todos'); // 'todos'|'activas'|'inactivas'|'con-descuento'|'con-cuotas'
 
   const promosFiltradas = state.promos.filter((p, i) => {
     // Filtro de búsqueda por nombre banco/tarjeta/detalle
